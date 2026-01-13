@@ -1,0 +1,42 @@
+<%= form_with(model: game, class: "contents") do |form| %>
+  <% if game.errors.any? %>
+    <div id="error_explanation" class="bg-red-50 text-red-500 px-3 py-2 font-medium rounded-md mt-3">
+      <h2><%= pluralize(game.errors.count, "error") %> prohibited this game from being saved:</h2>
+
+      <ul class="list-disc ml-6">
+        <% game.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="my-5">
+    <%= form.label :status %>
+    <%= form.number_field :status, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": game.errors[:status].none?, "border-red-400 focus:outline-red-600": game.errors[:status].any?}] %>
+  </div>
+
+  <div class="my-5">
+    <%= form.label :current_turn %>
+    <%= form.number_field :current_turn, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": game.errors[:current_turn].none?, "border-red-400 focus:outline-red-600": game.errors[:current_turn].any?}] %>
+  </div>
+
+  <div class="my-5">
+    <%= form.label :dice_1 %>
+    <%= form.number_field :dice_1, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": game.errors[:dice_1].none?, "border-red-400 focus:outline-red-600": game.errors[:dice_1].any?}] %>
+  </div>
+
+  <div class="my-5">
+    <%= form.label :dice_2 %>
+    <%= form.number_field :dice_2, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": game.errors[:dice_2].none?, "border-red-400 focus:outline-red-600": game.errors[:dice_2].any?}] %>
+  </div>
+
+  <div class="my-5">
+    <%= form.label :board_state %>
+    <%= form.text_field :board_state, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": game.errors[:board_state].none?, "border-red-400 focus:outline-red-600": game.errors[:board_state].any?}] %>
+  </div>
+
+  <div class="inline">
+    <%= form.submit class: "w-full sm:w-auto rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white inline-block font-medium cursor-pointer" %>
+  </div>
+<% end %>

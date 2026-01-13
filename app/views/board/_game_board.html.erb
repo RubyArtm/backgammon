@@ -1,0 +1,184 @@
+<%
+  white_in_home = game.board_state.each_with_index.all? { |p, i| p["count"] == 0 || p["color"] != 'white' || (12..17).include?(i) }
+  black_in_home = game.board_state.each_with_index.all? { |p, i| p["count"] == 0 || p["color"] != 'black' || (0..5).include?(i) }
+%>
+
+<div id="game_area" class="h-full w-full flex flex-col items-center justify-center">
+
+  <%# WINNER SCREEN (appears at status 2) %>
+  <% if game.status == 2 %>
+    <div id="winner-announcement" data-fired="false"
+         class="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/80 backdrop-blur-xl animate-fade-in">
+
+      <div class="text-center p-10 bg-white/10 rounded-3xl border border-white/20 shadow-2xl">
+        <h2 class="text-6xl font-black text-white uppercase italic tracking-tighter">
+          The <%= game.white_borne_off == 15 ? 'whites' : 'black' %> won!
+        </h2>
+
+        <div class="mt-10">
+          <%= button_to "Play again", reset_game_path(game),
+                        method: :post,
+                        class: "bg-amber-500 text-amber-950 px-12 py-4 rounded-full font-black text-xl hover:bg-amber-400 hover:scale-105 transition-all shadow-xl cursor-pointer" %>
+        </div>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Appearing notifications -->
+  <%= render "board/flash_message" %>
+
+
+  <!-- Motion indicator -->
+  <div class="mb-4 flex gap-4 items-center bg-white/50 px-4 py-1 rounded-full shadow-sm shrink-0 border border-white/20">
+    <div class="flex items-center gap-2 transition-opacity <%= game.current_turn == 0 ? 'opacity-100' : 'opacity-30' %>">
+      <div class="w-3 h-3 rounded-full bg-white border border-slate-400"></div>
+      <span class="font-bold text-slate-700 text-[10px] md:text-xs">White checkers' move</span>
+    </div>
+    <div class="w-px h-3 bg-slate-400/30"></div>
+    <div class="flex items-center gap-2 transition-opacity <%= game.current_turn == 1 ? 'opacity-100' : 'opacity-30' %>">
+      <div class="w-3 h-3 rounded-full bg-slate-800"></div>
+      <span class="font-bold text-slate-700 text-[10px] md:text-xs">Black checkers' move</span>
+    </div>
+  </div>
+
+  <div class="flex items-stretch gap-1 w-full max-w-[min(90vw,65vh)] aspect-[3/4] min-h-0">
+  <!-- External wooden frame -->
+  <div class="bg-amber-900 p-[1%] rounded-sm shadow-2xl border-b-4 md:border-b-8 border-amber-950 w-full max-w-[min(90vw,55vh)] aspect-[3/4] max-h-full flex flex-col">
+
+    <!-- Playing field -->
+    <div class="bg-emerald-900 w-full h-full flex relative border-2 md:border-4 border-amber-950 shadow-inner overflow-hidden">
+
+      <!-- Central Bar (wood) -->
+      <div class="absolute left-1/2 top-[-4px] bottom-[-4px] w-[3%] bg-amber-900 -translate-x-1/2 z-20 shadow-xl border-x border-amber-950">
+        <!--<div class="h-full w-px bg-amber-800 opacity-30"></div>-->
+      </div>
+
+      <!-- Left half of the board -->
+      <div class="flex-1 flex flex-col justify-between p-[1%] pr-[2.5%]">
+        <!-- Top points (13-18) -->
+        <div class="flex h-[45%] gap-[1%] -mt-1">
+          <% (12..17).each do |idx| %>
+            <div class="flex-1 relative flex flex-col items-center cursor-pointer transition-all group"
+                 data-game-target="point"
+                 data-action="click->game#selectPoint"
+                 data-point-index="<%= idx %>">
+              <div class="absolute inset-0 <%= idx.even? ? 'bg-amber-200' : 'bg-amber-500' %> opacity-90 group-hover:opacity-150 transition-opacity"
+                   style="clip-path: polygon(0 0, 100% 0, 50% 100%);"></div>
+              <% if white_in_home %>
+                <span class="absolute -top-4 text-[9px] font-black text-amber-800 opacity-40"><%= idx - 11 %></span>
+              <% end %>
+              <%# Removing checkers from the base %>
+              <% item = game.board_state[idx] %>
+              <% item["count"].to_i.times do |n| %>
+                <div class="checker w-[85%] aspect-square rounded-full <%= item["color"] == 'white' ? 'bg-white border-slate-300' : 'bg-slate-800 border-slate-600' %> border-[1px] md:border-2 shadow-md z-10 <%= n > 0 ? '-mt-[60%]' : '' %> hover:scale-110 transition-transform cursor-pointer">
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+        <!-- Bottom points (7-12) -->
+        <div class="flex h-[45%] gap-[1%] -mb-1">
+          <% (6..11).to_a.reverse.each do |idx| %>
+            <div class="flex-1 relative flex flex-col-reverse items-center cursor-pointer transition-all group"
+                 data-game-target="point"
+                 data-action="click->game#selectPoint"
+                 data-point-index="<%= idx %>">
+              <div class="absolute inset-0 <%= idx.even? ? 'bg-amber-200' : 'bg-amber-500' %> opacity-90 group-hover:opacity-150 transition-opacity"
+                   style="clip-path: polygon(50% 0, 0 100%, 100% 100%);"></div>
+              <%# Removing checkers from the base %>
+              <% item = game.board_state[idx] %>
+              <% item["count"].to_i.times do |n| %>
+                <div class="checker w-[85%] aspect-square rounded-full <%= item["color"] == 'white' ? 'bg-white border-slate-300' : 'bg-slate-800 border-slate-600' %> border-[1px] md:border-2 shadow-md z-10 <%= n > 0 ? '-mb-[60%]' : '' %> hover:scale-110 transition-transform cursor-pointer">
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- The right half of the board -->
+      <div class="flex-1 flex flex-col justify-between p-[1%] pl-[2.5%]">
+        <!-- Top points (19-24) -->
+        <div class="flex h-[45%] gap-[1%] -mt-1">
+          <% (18..23).each do |idx| %>
+            <div class="flex-1 relative flex flex-col items-center cursor-pointer transition-all group"
+                 data-game-target="point"
+                 data-action="click->game#selectPoint"
+                 data-point-index="<%= idx %>">
+              <div class="absolute inset-0 <%= idx.even? ? 'bg-amber-200' : 'bg-amber-500' %> opacity-90 group-hover:opacity-150 transition-opacity"
+                   style="clip-path: polygon(0 0, 100% 0, 50% 100%);"></div>
+              <%# Removing checkers from the base %>
+              <% item = game.board_state[idx] %>
+              <% item["count"].to_i.times do |n| %>
+                <div class="checker w-[85%] aspect-square rounded-full <%= item["color"] == 'white' ? 'bg-white border-slate-300' : 'bg-slate-800 border-slate-600' %> border-[1px] md:border-2 shadow-md z-10 <%= n > 0 ? '-mt-[60%]' : '' %> hover:scale-110 transition-transform cursor-pointer">
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+        <!-- Bottom points (1-6) -->
+        <div class="flex h-[45%] gap-[1%] -mb-1">
+          <% (0..5).to_a.reverse.each do |idx| %>
+            <div class="flex-1 relative flex flex-col-reverse items-center cursor-pointer transition-all group"
+                 data-game-target="point"
+                 data-action="click->game#selectPoint"
+                 data-point-index="<%= idx %>">
+              <div class="absolute inset-0 <%= idx.even? ? 'bg-amber-200' : 'bg-amber-500' %> opacity-90 group-hover:opacity-150 transition-opacity"
+                   style="clip-path: polygon(50% 0, 0 100%, 100% 100%);"></div>
+              <% if black_in_home %>
+                <span class="absolute -bottom-4 text-[9px] font-black text-amber-800 opacity-40"><%= idx + 1 %></span>
+              <% end %>
+              <%# Removing checkers from the base %>
+              <% item = game.board_state[idx] %>
+              <% item["count"].to_i.times do |n| %>
+                <div class="checker w-[85%] aspect-square rounded-full <%= item["color"] == 'white' ? 'bg-white border-slate-300' : 'bg-slate-800 border-slate-600' %> border-[1px] md:border-2 shadow-md z-10 <%= n > 0 ? '-mb-[60%]' : '' %> hover:scale-110 transition-transform cursor-pointer">
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="w-[12%] flex flex-col justify-between py-[1%] shrink-0">
+    <!-- House of Black Checkers -->
+    <div class="h-[48%] bg-black/10 rounded border-2 border-dashed border-black/20 flex flex-col-reverse items-center p-1 gap-0.5 cursor-pointer <%= black_in_home ? 'ring-2 ring-emerald-500/50 bg-emerald-500/5' : '' %>"
+         data-game-target="point" data-action="click->game#selectPoint" data-point-index="-2">
+      <% (game.black_borne_off || 0).times do %>
+        <div class="w-full h-[5%] bg-slate-800 rounded-sm border border-slate-600 shadow-sm"></div>
+      <% end %>
+    </div>
+
+    <!-- House of White Checkers -->
+    <div class="h-[48%] bg-white/30 rounded border-2 border-dashed border-white/50 flex flex-col items-center p-1 gap-0.5 cursor-pointer <%= white_in_home ? 'ring-2 ring-emerald-500/50 bg-emerald-500/5' : '' %>"
+         data-game-target="point" data-action="click->game#selectPoint" data-point-index="-1">
+      <% (game.white_borne_off || 0).times do %>
+        <div class="w-full h-[5%] bg-white rounded-sm border border-slate-300 shadow-sm"></div>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+  <!-- Control Panel -->
+  <div class="mt-4 flex items-center gap-4 shrink-0">
+    <div class="flex gap-2 bg-emerald-800 p-2 md:p-3 rounded-lg shadow-inner border border-white/10 hover:cursor-pointer">
+      <% if game.available_moves.present? %>
+        <% game.available_moves.each do |val| %>
+          <div class="w-8 h-8 md:w-10 md:h-10 bg-white rounded-md flex items-center justify-center text-lg md:text-xl font-bold shadow-lg animate-bounce-short transition-all duration-300 hover:rotate-12 hover:scale-110 hover:-translate-y-1 cursor-pointer">
+            <%= val %>
+          </div>
+        <% end %>
+      <% else %>
+        <span class="text-emerald-400 font-mono text-[10px] uppercase tracking-widest px-2 opacity-70 italic">Waiting</span>
+      <% end %>
+    </div>
+
+    <%= button_to roll_dice_game_path(game),
+                  method: :post,
+                  disabled: game.available_moves.present?,
+                  class: "bg-emerald-600 text-white px-8 md:px-10 py-2.5 md:py-5 rounded-full font-black text-sm md:text-lg shadow-[0_4px_0_rgb(5,150,105)] hover:bg-emerald-500 disabled:bg-slate-400 disabled:shadow-none active:translate-y-1 transition-all uppercase tracking-widest cursor-pointer" do %>
+      Roll the dice 🎲
+    <% end %>
+  </div>
+  </div>

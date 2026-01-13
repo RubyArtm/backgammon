@@ -1,0 +1,22 @@
+<div id="<%= dom_id game %>" class="w-full sm:w-auto my-5 space-y-5">
+  <div>
+    <strong class="block font-medium mb-1">Status:</strong>
+    <%= game.status %>
+  </div>
+  <div>
+    <strong class="block font-medium mb-1">Current turn:</strong>
+    <%= game.current_turn %>
+  </div>
+  <div>
+    <strong class="block font-medium mb-1">Dice 1:</strong>
+    <%= game.dice_1 %>
+  </div>
+  <div>
+    <strong class="block font-medium mb-1">Dice 2:</strong>
+    <%= game.dice_2 %>
+  </div>
+  <div>
+    <strong class="block font-medium mb-1">Board state:</strong>
+    <%= game.board_state %>
+  </div>
+</div>
