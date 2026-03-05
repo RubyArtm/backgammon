@@ -47,19 +47,58 @@ export default class extends Controller {
         body: JSON.stringify({ from_index: from, to_index: to })
       })
 
-      if (response.ok) {
+      const contentType = response.headers.get("Content-Type") || ""
+
+      if (contentType.includes("text/vnd.turbo-stream.html")) {
         const html = await response.text()
         if (window.Turbo) window.Turbo.renderStreamMessage(html)
-      } else {
-        const data = await response.json()
-        this.showMessage(data.error || "Error in the move")
+
+        requestAnimationFrame(() => this.scheduleFlashAutoHide())
+        return
       }
+
+      if (response.ok) return
+
+      if (contentType.includes("application/json")) {
+        const data = await response.json()
+        this.showMessage(data.error || "Error")
+        return
+      }
+
+      this.showMessage("Server error (see Rails log)")
     } catch (error) {
       console.error("Move error:", error)
       window.location.reload()
     }
   }
 
+  showMessage(text) {
+    const flash = document.getElementById("flash-message")
+    const flashText = document.getElementById("flash-text")
+    if (!flash || !flashText) return
+
+    flashText.innerText = text
+    flash.classList.replace("scale-0", "scale-100")
+    flash.classList.replace("opacity-0", "opacity-100")
+
+    this.scheduleFlashAutoHide()
+  }
+
+  scheduleFlashAutoHide() {
+    const flash = document.getElementById("flash-message")
+    const flashText = document.getElementById("flash-text")
+    if (!flash || !flashText) return
+
+    const message = (flashText.textContent || "").trim()
+    if (message.length === 0) return
+
+    if (this.flashHideTimer) clearTimeout(this.flashHideTimer)
+
+    this.flashHideTimer = setTimeout(() => {
+      flash.classList.add("scale-0", "opacity-0")
+      flash.classList.remove("scale-100", "opacity-100")
+    }, 3000)
+  }
   async checkWinner() {
     const winnerEl = document.getElementById("winner-announcement")
     if (winnerEl && winnerEl.getAttribute('data-fired') === "false") {
