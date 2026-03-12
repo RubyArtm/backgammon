@@ -1,4 +1,4 @@
-# >🎮 **LIVE DEMO:** [Play Backgammon Long on Render](https://art-backgammon.onrender.com/)
+# 🎮 **LIVE DEMO:** [Play Backgammon Long on Render](https://art-backgammon.onrender.com/)
 # 🎲 Backgammon Long
 
 A modern web implementation of the classic **"Long Backgammon"** board game, built with the cutting-edge **Ruby on Rails 8** stack. This project combines traditional rules with the high interactivity of a modern single-page application.
