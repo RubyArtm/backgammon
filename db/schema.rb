@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_12_124410) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_24_160000) do
   create_table "games", force: :cascade do |t|
     t.json "available_moves"
     t.integer "black_borne_off"
@@ -19,6 +19,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_12_124410) do
     t.integer "current_turn"
     t.integer "dice_1"
     t.integer "dice_2"
+    t.json "dice_stats"
     t.boolean "head_used"
     t.integer "status"
     t.datetime "updated_at", null: false

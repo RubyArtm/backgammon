@@ -37,7 +37,7 @@ class GamesController < ApplicationController
 
   def reset
     state = @game.domain_state
-    state.reset!
+    state.reset!(preserve_stats: ActiveModel::Type::Boolean.new.cast(params[:preserve_stats]))
 
     state.apply_to_record!(@game)
     @game.save!

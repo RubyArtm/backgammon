@@ -53,7 +53,10 @@ export default class extends Controller {
         const html = await response.text()
         if (window.Turbo) window.Turbo.renderStreamMessage(html)
 
-        requestAnimationFrame(() => this.scheduleFlashAutoHide())
+        requestAnimationFrame(() => {
+          this.scheduleFlashAutoHide()
+          this.checkWinner()
+        })
         return
       }
 
@@ -130,19 +133,6 @@ export default class extends Controller {
       }
     }
     frame()
-  }
-
-  showMessage(text) {
-    const flash = document.getElementById("flash-message")
-    const flashText = document.getElementById("flash-text")
-    if (!flash || !flashText) return
-    flashText.innerText = text
-    flash.classList.replace("scale-0", "scale-100")
-    flash.classList.replace("opacity-0", "opacity-100")
-    setTimeout(() => {
-      flash.classList.replace("scale-100", "scale-0")
-      flash.classList.replace("opacity-100", "opacity-0")
-    }, 3000)
   }
 
   autoHideFlash() {  const flash = document.getElementById("flash-message")

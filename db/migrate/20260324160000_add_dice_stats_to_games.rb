@@ -1,0 +1,5 @@
+class AddDiceStatsToGames < ActiveRecord::Migration[8.1]
+  def change
+    add_column :games, :dice_stats, :json
+  end
+end

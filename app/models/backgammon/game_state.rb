@@ -1,7 +1,22 @@
 module Backgammon
   class GameState
     attr_reader :board, :available_moves, :dice_1, :dice_2, :current_turn,
-                :head_used, :white_borne_off, :black_borne_off, :status, :flash_alert
+                :head_used, :white_borne_off, :black_borne_off, :status, :flash_alert, :dice_stats
+
+    def self.empty_dice_stats
+      {
+        "white" => {
+          "rolled" => default_counter,
+          "used" => default_counter,
+          "doubles" => default_counter
+        },
+        "black" => {
+          "rolled" => default_counter,
+          "used" => default_counter,
+          "doubles" => default_counter
+        }
+      }
+    end
 
     def self.from_record(game)
       new(
@@ -13,11 +28,12 @@ module Backgammon
         head_used: !!game.head_used,
         white_borne_off: game.white_borne_off.to_i,
         black_borne_off: game.black_borne_off.to_i,
-        status: game.status.to_i
+        status: game.status.to_i,
+        dice_stats: game.dice_stats
       )
     end
 
-    def initialize(board:, available_moves:, dice_1:, dice_2:, current_turn:, head_used:, white_borne_off:, black_borne_off:, status:)
+    def initialize(board:, available_moves:, dice_1:, dice_2:, current_turn:, head_used:, white_borne_off:, black_borne_off:, status:, dice_stats:)
       @board = board
       @available_moves = available_moves
       @dice_1 = dice_1
@@ -27,6 +43,7 @@ module Backgammon
       @white_borne_off = white_borne_off
       @black_borne_off = black_borne_off
       @status = status
+      @dice_stats = self.class.normalize_dice_stats(dice_stats)
       @flash_alert = nil
     end
 
@@ -45,12 +62,14 @@ module Backgammon
       @dice_2 = d2
       @available_moves = moves
       @head_used = false
+      moves.each { |value| increment_counter!(current_color, "rolled", value) }
+      increment_double_counter!(current_color, d1) if d1 == d2
 
       apply_blocked_turn_if_needed!
       self
     end
 
-    def reset!
+    def reset!(preserve_stats: false)
       @board = Backgammon::Board.initial
 
       @available_moves = []
@@ -61,6 +80,7 @@ module Backgammon
       @white_borne_off = 0
       @black_borne_off = 0
       @status = 1
+      @dice_stats = self.class.empty_dice_stats unless preserve_stats
       @flash_alert = nil
       self
     end
@@ -122,9 +142,11 @@ module Backgammon
 
       # commit state
       @board = next_board
+      used_value = moves[move_index]
       moves.delete_at(move_index)
       @available_moves = moves
       @head_used = true if from == head_index
+      increment_counter!(color, "used", used_value)
 
       if is_bearing_off
         if color == "white"
@@ -151,10 +173,76 @@ module Backgammon
       game.white_borne_off = white_borne_off
       game.black_borne_off = black_borne_off
       game.status = status
+      game.dice_stats = dice_stats
       game
     end
 
     private
+
+    def self.default_counter
+      {
+        "1" => 0,
+        "2" => 0,
+        "3" => 0,
+        "4" => 0,
+        "5" => 0,
+        "6" => 0,
+        "total" => 0
+      }
+    end
+    private_class_method :default_counter
+
+    def self.normalize_dice_stats(input)
+      stats = empty_dice_stats
+      return stats unless input.is_a?(Hash)
+
+      %w[white black].each do |color|
+        color_data = input[color]
+        next unless color_data.is_a?(Hash)
+
+        %w[rolled used doubles].each do |kind|
+          kind_data = color_data[kind]
+          next unless kind_data.is_a?(Hash)
+
+          ("1".."6").each do |die|
+            stats[color][kind][die] = kind_data[die].to_i if kind_data.key?(die)
+          end
+
+          stats[color][kind]["total"] =
+            if kind_data.key?("total")
+              kind_data["total"].to_i
+            elsif kind == "doubles"
+              counter_count(stats[color][kind])
+            else
+              counter_total(stats[color][kind])
+            end
+        end
+      end
+
+      stats
+    end
+
+    def increment_counter!(color, kind, value)
+      numeric_value = value.to_i
+      @dice_stats[color][kind][numeric_value.to_s] += 1
+      @dice_stats[color][kind]["total"] += numeric_value
+    end
+
+    def increment_double_counter!(color, value)
+      numeric_value = value.to_i
+      @dice_stats[color]["doubles"][numeric_value.to_s] += 1
+      @dice_stats[color]["doubles"]["total"] += 1
+    end
+
+    def self.counter_total(counter)
+      ("1".."6").sum { |die| counter[die].to_i * die.to_i }
+    end
+    private_class_method :counter_total
+
+    def self.counter_count(counter)
+      ("1".."6").sum { |die| counter[die].to_i }
+    end
+    private_class_method :counter_count
 
     def apply_blocked_turn_if_needed!
       return self if available_moves.empty?
