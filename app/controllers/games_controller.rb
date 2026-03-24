@@ -1,8 +1,9 @@
 class GamesController < ApplicationController
-  before_action :set_game, only: %i[ show roll_dice move reset ]
+  before_action :set_game, only: %i[ show roll_dice move undo_move reset ]
   skip_before_action :verify_authenticity_token, only: [:move]
 
   def roll_dice
+    @game.clear_undo_history!
     state = @game.domain_state
     state.roll_dice!
 
@@ -22,9 +23,11 @@ class GamesController < ApplicationController
     to   = params.require(:to_index).to_i
 
     state = @game.domain_state
+    previous_state = state.snapshot
     state.apply_move!(from:, to:)
 
     state.apply_to_record!(@game)
+    @game.push_undo_snapshot!(previous_state)
     @game.save!
 
     flash.now[:alert] = state.flash_alert if state.flash_alert.present?
@@ -35,11 +38,31 @@ class GamesController < ApplicationController
     render_server_error(e, tag: "MOVE")
   end
 
+  def undo_move
+    snapshot = @game.pop_undo_snapshot!
+    unless snapshot
+      flash.now[:alert] = "Undo is available only before opponent rolls the dice."
+      return render_flash_stream(status: :unprocessable_entity)
+    end
+
+    state = @game.domain_state
+    state.restore_from_snapshot!(snapshot)
+    state.apply_to_record!(@game)
+    @game.save!
+
+    render_game_update
+  rescue Backgammon::Error => e
+    render_domain_error(e)
+  rescue StandardError => e
+    render_server_error(e, tag: "UNDO_MOVE")
+  end
+
   def reset
     state = @game.domain_state
     state.reset!(preserve_stats: ActiveModel::Type::Boolean.new.cast(params[:preserve_stats]))
 
     state.apply_to_record!(@game)
+    @game.clear_undo_history!
     @game.save!
 
     render_game_update

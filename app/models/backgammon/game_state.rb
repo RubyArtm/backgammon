@@ -177,6 +177,38 @@ module Backgammon
       game
     end
 
+    def snapshot
+      {
+        "board_state" => board.to_json,
+        "available_moves" => available_moves.deep_dup,
+        "dice_1" => dice_1,
+        "dice_2" => dice_2,
+        "current_turn" => current_turn,
+        "head_used" => head_used,
+        "white_borne_off" => white_borne_off,
+        "black_borne_off" => black_borne_off,
+        "status" => status,
+        "dice_stats" => dice_stats.deep_dup
+      }
+    end
+
+    def restore_from_snapshot!(input)
+      snapshot = input.is_a?(Hash) ? input : {}
+
+      @board = Backgammon::Board.from_json(read_snapshot(snapshot, "board_state"))
+      @available_moves = Array(read_snapshot(snapshot, "available_moves")).map(&:to_i)
+      @dice_1 = read_snapshot(snapshot, "dice_1").to_i
+      @dice_2 = read_snapshot(snapshot, "dice_2").to_i
+      @current_turn = read_snapshot(snapshot, "current_turn").to_i
+      @head_used = !!read_snapshot(snapshot, "head_used")
+      @white_borne_off = read_snapshot(snapshot, "white_borne_off").to_i
+      @black_borne_off = read_snapshot(snapshot, "black_borne_off").to_i
+      @status = read_snapshot(snapshot, "status").to_i
+      @dice_stats = self.class.normalize_dice_stats(read_snapshot(snapshot, "dice_stats"))
+      @flash_alert = nil
+      self
+    end
+
     private
 
     def self.default_counter
@@ -243,6 +275,10 @@ module Backgammon
       ("1".."6").sum { |die| counter[die].to_i }
     end
     private_class_method :counter_count
+
+    def read_snapshot(snapshot, key)
+      snapshot[key] || snapshot[key.to_sym]
+    end
 
     def apply_blocked_turn_if_needed!
       return self if available_moves.empty?

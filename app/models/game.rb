@@ -31,6 +31,39 @@ class Game < ApplicationRecord
     self.dice_1 = 0
     self.dice_2 = 0
     self.dice_stats = self.class.initial_dice_stats
+    self.undo_snapshot = nil
+  end
+
+  def undo_available?
+    undo_stack.any?
+  end
+
+  def undo_stack
+    case undo_snapshot
+    when Array
+      undo_snapshot.select { |item| item.is_a?(Hash) }
+    when Hash
+      [undo_snapshot]
+    else
+      []
+    end
+  end
+
+  def push_undo_snapshot!(snapshot)
+    stack = undo_stack
+    stack << snapshot
+    self.undo_snapshot = stack
+  end
+
+  def pop_undo_snapshot!
+    stack = undo_stack
+    snapshot = stack.pop
+    self.undo_snapshot = stack.presence
+    snapshot
+  end
+
+  def clear_undo_history!
+    self.undo_snapshot = nil
   end
 
   def self.default_dice_counter
@@ -58,4 +91,5 @@ class Game < ApplicationRecord
   end
   private_class_method :default_dice_counter
   private_class_method :default_double_counter
+
 end

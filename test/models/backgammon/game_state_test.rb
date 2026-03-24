@@ -125,4 +125,21 @@ class Backgammon::GameStateTest < ActiveSupport::TestCase
     assert_equal 4, state.dice_stats.dig("black", "rolled", "2")
     assert_equal 8, state.dice_stats.dig("black", "rolled", "total")
   end
+
+  test "restore_from_snapshot reverts board and stats after move" do
+    state = build_state(available_moves: [1], dice_1: 1, dice_2: 2)
+    snapshot = state.snapshot
+
+    state.apply_move!(from: 11, to: 10)
+    assert_equal 1, state.dice_stats.dig("white", "used", "1")
+    assert_equal 14, state.board.count_at(11)
+
+    state.restore_from_snapshot!(snapshot)
+
+    assert_equal 15, state.board.count_at(11)
+    assert_equal 0, state.board.count_at(10)
+    assert_equal [1], state.available_moves
+    assert_equal 0, state.dice_stats.dig("white", "used", "1")
+    assert_equal 0, state.dice_stats.dig("white", "used", "total")
+  end
 end

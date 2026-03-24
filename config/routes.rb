@@ -7,6 +7,7 @@ Rails.application.routes.draw do
     member do
       post :roll_dice
       post :move
+      post :undo_move
       post :reset
     end
   end

@@ -17,4 +17,17 @@ class GameTest < ActiveSupport::TestCase
     assert_equal 0, game.dice_stats.dig("black", "doubles", "2")
     assert_equal 0, game.dice_stats.dig("black", "doubles", "total")
   end
+
+  test "undo availability depends on turn and opponent roll state" do
+    game = Game.create!
+
+    refute game.undo_available?
+
+    game.push_undo_snapshot!({ "current_turn" => 0 })
+    assert game.undo_available?
+
+    snapshot = game.pop_undo_snapshot!
+    assert_equal 0, snapshot["current_turn"]
+    refute game.undo_available?
+  end
 end
