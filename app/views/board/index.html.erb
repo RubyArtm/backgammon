@@ -1,13 +1,17 @@
-<div class="flex flex-col items-center justify-center h-screen w-full bg-stone-300 p-2 md:p-4 select-none overflow-hidden"
+<div class="nordic-shell flex flex-col items-center justify-center h-screen w-full p-2 md:p-4 select-none overflow-hidden"
      data-controller="game"
      data-game-id="<%= @game.id %>">
 
-  <h1 class="text-xl md:text-3xl font-black text-slate-800 mb-2 md:mb-4 tracking-tighter uppercase shrink-0">
-    Backgammon <span class="text-amber-600">Long</span>
+  <h1 class="nordic-title text-xl md:text-3xl font-black mb-2 md:mb-4 uppercase shrink-0">
+    Backgammon <span class="nordic-title-accent">Long</span>
   </h1>
 <%# Calling a dynamic block %>
   <div class="flex-1 w-full min-h-0 flex items-center justify-center">
-  <%= render "game_board", game: @game %>
+  <%= render "game_board",
+             game: @display_game,
+             replay_mode: @replay_mode,
+             replay_step: @replay_step,
+             replay_total: @replay_total %>
   </div>
 
   <div class="mt-4 md:mt-8 opacity-50 hover:opacity-100 transition-opacity shrink-0">

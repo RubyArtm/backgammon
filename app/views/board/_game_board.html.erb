@@ -1,13 +1,23 @@
 <%
+  replay_mode = local_assigns.fetch(:replay_mode, false)
+  replay_step = local_assigns.fetch(:replay_step, 0).to_i
+  replay_total = local_assigns.fetch(:replay_total, 0).to_i
   white_in_home = game.board_state.each_with_index.all? { |p, i| p["count"] == 0 || p["color"] != 'white' || (12..17).include?(i) }
   black_in_home = game.board_state.each_with_index.all? { |p, i| p["count"] == 0 || p["color"] != 'black' || (0..5).include?(i) }
   dice_stats = game.dice_stats.is_a?(Hash) ? game.dice_stats : {}
+  legal_moves_map = replay_mode ? {} : game.legal_moves_map
+  point_action = replay_mode ? nil : "click->game#selectPoint"
+  history_entries = game.move_history_entries
+  stat_sections = %w[rolled used doubles history]
 %>
 
-<div id="game_area" class="h-full w-full flex flex-col items-center justify-center">
+<div id="game_area"
+     data-legal-moves-map="<%= json_escape(legal_moves_map.to_json) %>"
+     data-replay-mode="<%= replay_mode %>"
+     class="h-full w-full flex flex-col items-center justify-center">
 
   <%# WINNER SCREEN (appears at status 2) %>
-  <% if game.status == 2 %>
+  <% if game.status == 2 && !replay_mode %>
     <div id="winner-announcement" data-fired="false"
          class="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/80 backdrop-blur-xl animate-fade-in">
 
@@ -29,9 +39,10 @@
   <!-- Appearing notifications -->
   <%= render "board/flash_message" %>
 
+  <div class="w-full flex flex-col items-center translate-x-[1.5%] md:translate-x-[2%]">
 
   <!-- Motion indicator -->
-  <div class="mb-4 flex gap-4 items-center bg-white/50 px-4 py-1 rounded-full shadow-sm shrink-0 border border-white/20">
+  <div class="nordic-turn-indicator mb-4 flex gap-4 items-center px-4 py-1 rounded-full shrink-0 -translate-x-[10.5%] md:-translate-x-[11%]">
     <div class="flex items-center gap-2 transition-opacity <%= game.current_turn == 0 ? 'opacity-100' : 'opacity-30' %>">
       <div class="w-3 h-3 rounded-full bg-white border border-slate-400"></div>
       <span class="font-bold text-slate-700 text-[10px] md:text-xs">White checkers' move</span>
@@ -43,84 +54,135 @@
     </div>
   </div>
 
-  <div class="w-full max-w-[min(98vw,120vh)] min-h-0 flex flex-col lg:flex-row items-stretch gap-2 md:gap-3">
-    <div class="w-full lg:w-[28%] bg-amber-900/95 border-2 border-amber-950 rounded-sm shadow-2xl p-2 md:p-3 text-amber-50">
-      <div class="text-[10px] md:text-xs uppercase tracking-[0.2em] font-black text-amber-300/90">Dice statistics</div>
+  <div id="board_layout" class="w-full max-w-[min(98vw,120vh)] min-h-0 flex items-center justify-center">
+    <div id="board_anchor" class="relative w-full max-w-[min(72vw,50vh)]">
+    <div id="stats_panel" class="<%= replay_mode ? '' : 'hidden' %> absolute left-0 lg:right-full lg:left-auto lg:mr-3 top-0 w-[min(88vw,340px)] lg:w-auto lg:h-full max-h-[85vh] overflow-hidden bg-amber-900/95 border-2 border-amber-950 rounded-sm shadow-2xl p-2 md:p-3 text-amber-50 z-40 flex flex-col lg:flex-row gap-3">
+      <div data-stat-section="history" class="history-column lg:w-[152px] lg:shrink-0 flex flex-col min-h-0 border-b lg:border-b-0 lg:border-r border-amber-700/50 pb-3 lg:pb-0 lg:pr-3">
+        <div class="flex items-center justify-between">
+          <div class="text-[10px] md:text-xs uppercase tracking-[0.2em] font-black text-amber-300/90">Move history</div>
+          <% if replay_mode %>
+            <%= link_to "Live", root_path, class: "text-[10px] md:text-xs uppercase font-black text-emerald-300 hover:text-emerald-200" %>
+          <% end %>
+        </div>
 
-      <div class="mt-2 md:mt-3 space-y-2 md:space-y-3">
-        <% [["white", "White", "bg-white text-slate-900 border-slate-300"], ["black", "Black", "bg-slate-800 text-white border-slate-600"]].each do |key, label, checker_classes| %>
-          <div class="bg-emerald-950/45 border border-amber-700/60 rounded p-2 md:p-3">
-            <div class="flex items-center gap-2 mb-2">
-              <div class="w-3 h-3 rounded-full border <%= checker_classes %>"></div>
-              <div class="text-[11px] md:text-xs font-black uppercase tracking-wider"><%= label %></div>
-            </div>
+        <div class="mt-2 flex-1 min-h-0 overflow-y-auto space-y-1 pr-1">
+          <% if history_entries.empty? %>
+            <div class="text-[10px] md:text-xs text-amber-200/70">No moves yet.</div>
+          <% else %>
+            <% history_entries.each_with_index do |entry, idx| %>
+              <% color = entry["color"] == "black" ? "B" : "W" %>
+              <%= link_to root_path(replay_step: idx + 1),
+                          class: "flex items-center justify-between px-2 py-1 rounded border #{replay_mode && replay_step == idx + 1 ? 'border-emerald-300 bg-emerald-400/15' : 'border-white/10 bg-black/10 hover:bg-black/20'}" do %>
+                <span class="text-[10px] md:text-xs font-bold"><%= idx + 1 %>. <%= color %> <%= history_move_label(entry) %></span>
+                <span class="text-[9px] md:text-[10px] text-amber-200/80">d<%= entry["die"].to_i %></span>
+              <% end %>
+            <% end %>
+          <% end %>
+        </div>
 
-            <% [["rolled", "Rolled"], ["used", "Used"]].each do |kind_key, kind_label| %>
-              <div class="mb-1 last:mb-0">
-                <div class="text-[9px] md:text-[10px] font-bold uppercase text-amber-200/80 tracking-widest mb-1"><%= kind_label %></div>
+        <% if replay_mode || replay_total.positive? %>
+          <div class="mt-2 pt-2 flex flex-wrap items-center gap-2">
+            <%= link_to "Start",
+                        root_path(replay_step: 0),
+                        class: "inline-flex items-center justify-center min-w-[52px] h-7 text-[10px] md:text-xs uppercase font-black px-2 py-1 rounded bg-amber-700/40 hover:bg-amber-700/60 #{replay_total.zero? ? 'pointer-events-none opacity-40' : ''}" %>
+            <% if replay_mode %>
+              <%= link_to "Prev", root_path(replay_step: replay_step - 1), class: "inline-flex items-center justify-center min-w-[52px] h-7 text-[10px] md:text-xs uppercase font-black px-2 py-1 rounded bg-amber-700/40 hover:bg-amber-700/60 #{replay_step <= 0 ? 'pointer-events-none opacity-40' : ''}" %>
+              <%= link_to "Next", root_path(replay_step: replay_step + 1), class: "inline-flex items-center justify-center min-w-[52px] h-7 text-[10px] md:text-xs uppercase font-black px-2 py-1 rounded bg-amber-700/40 hover:bg-amber-700/60 #{replay_step >= replay_total ? 'pointer-events-none opacity-40' : ''}" %>
+              <div class="w-full text-[10px] md:text-xs text-amber-200/80">Step <%= replay_step %>/<%= replay_total %></div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+
+      <div class="lg:w-[360px] lg:shrink-0 flex flex-col min-h-0">
+        <div class="text-[10px] md:text-xs uppercase tracking-[0.2em] font-black text-amber-300/90">Dice statistics</div>
+
+        <div class="mt-2 flex flex-wrap gap-1">
+          <% stat_sections.each do |section| %>
+            <button type="button"
+                    data-action="click->game#toggleStatSection"
+                    data-section="<%= section %>"
+                    class="stat-section-toggle px-2 py-1 rounded border border-white/20 bg-black/20 text-[9px] md:text-[10px] uppercase tracking-wider font-bold cursor-pointer">
+              <%= section %>
+            </button>
+          <% end %>
+        </div>
+
+        <div class="mt-2 md:mt-3 space-y-2 md:space-y-3 overflow-y-auto pr-1">
+          <% [["white", "White", "bg-white text-slate-900 border-slate-300"], ["black", "Black", "bg-slate-800 text-white border-slate-600"]].each do |key, label, checker_classes| %>
+            <div class="bg-emerald-950/45 border border-amber-700/60 rounded p-2 md:p-3">
+              <div class="flex items-center gap-2 mb-2">
+                <div class="w-3 h-3 rounded-full border <%= checker_classes %>"></div>
+                <div class="text-[11px] md:text-xs font-black uppercase tracking-wider"><%= label %></div>
+              </div>
+
+              <% [["rolled", "Rolled"], ["used", "Used"]].each do |kind_key, kind_label| %>
+                <div data-stat-section="<%= kind_key %>" class="mb-1 last:mb-0">
+                  <div class="text-[9px] md:text-[10px] font-bold uppercase text-amber-200/80 tracking-widest mb-1"><%= kind_label %></div>
+                  <div class="grid grid-cols-7 gap-1">
+                    <% (1..6).each do |die| %>
+                      <div class="rounded bg-emerald-900/70 border border-white/10 px-1 py-1 text-center">
+                        <div class="text-[8px] md:text-[9px] leading-none text-amber-200/70"><%= die %></div>
+                        <div class="text-[10px] md:text-xs font-black leading-tight">
+                          <%= dice_stats.dig(key, kind_key, die.to_s).to_i %>
+                        </div>
+                      </div>
+                    <% end %>
+                    <div class="rounded bg-amber-700/30 border border-amber-400/30 px-1 py-1 text-center">
+                      <div class="text-[8px] md:text-[9px] leading-none text-amber-200/80">SUM</div>
+                      <div class="text-[10px] md:text-xs font-black leading-tight">
+                        <%= dice_stats.dig(key, kind_key, "total").to_i %>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+
+              <div data-stat-section="doubles" class="mb-1 last:mb-0">
+                <div class="text-[9px] md:text-[10px] font-bold uppercase text-amber-200/80 tracking-widest mb-1">Doubles</div>
                 <div class="grid grid-cols-7 gap-1">
                   <% (1..6).each do |die| %>
                     <div class="rounded bg-emerald-900/70 border border-white/10 px-1 py-1 text-center">
-                      <div class="text-[8px] md:text-[9px] leading-none text-amber-200/70"><%= die %></div>
+                      <div class="text-[8px] md:text-[9px] leading-none text-amber-200/70"><%= die %>-<%= die %></div>
                       <div class="text-[10px] md:text-xs font-black leading-tight">
-                        <%= dice_stats.dig(key, kind_key, die.to_s).to_i %>
+                        <%= dice_stats.dig(key, "doubles", die.to_s).to_i %>
                       </div>
                     </div>
                   <% end %>
                   <div class="rounded bg-amber-700/30 border border-amber-400/30 px-1 py-1 text-center">
-                    <div class="text-[8px] md:text-[9px] leading-none text-amber-200/80">SUM</div>
+                    <div class="text-[8px] md:text-[9px] leading-none text-amber-200/80">CNT</div>
                     <div class="text-[10px] md:text-xs font-black leading-tight">
-                      <%= dice_stats.dig(key, kind_key, "total").to_i %>
+                      <%= dice_stats.dig(key, "doubles", "total").to_i %>
                     </div>
-                  </div>
-                </div>
-              </div>
-            <% end %>
-
-            <div class="mb-1 last:mb-0">
-              <div class="text-[9px] md:text-[10px] font-bold uppercase text-amber-200/80 tracking-widest mb-1">Doubles</div>
-              <div class="grid grid-cols-7 gap-1">
-                <% (1..6).each do |die| %>
-                  <div class="rounded bg-emerald-900/70 border border-white/10 px-1 py-1 text-center">
-                    <div class="text-[8px] md:text-[9px] leading-none text-amber-200/70"><%= die %>-<%= die %></div>
-                    <div class="text-[10px] md:text-xs font-black leading-tight">
-                      <%= dice_stats.dig(key, "doubles", die.to_s).to_i %>
-                    </div>
-                  </div>
-                <% end %>
-                <div class="rounded bg-amber-700/30 border border-amber-400/30 px-1 py-1 text-center">
-                  <div class="text-[8px] md:text-[9px] leading-none text-amber-200/80">CNT</div>
-                  <div class="text-[10px] md:text-xs font-black leading-tight">
-                    <%= dice_stats.dig(key, "doubles", "total").to_i %>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        <% end %>
+          <% end %>
+        </div>
       </div>
     </div>
 
-    <div class="flex items-stretch gap-1 w-full lg:w-[72%] max-w-[min(81vw,58.5vh)] lg:max-w-none aspect-[3/4] min-h-0 mx-auto">
+    <div id="board_stage" class="flex items-stretch gap-1 w-full aspect-[3/4] min-h-0 mx-auto">
   <!-- External wooden frame -->
-  <div class="bg-amber-900 p-[1%] rounded-sm shadow-2xl border-b-4 md:border-b-8 border-amber-950 flex-1 max-w-[min(81vw,49.5vh)] lg:max-w-none aspect-[3/4] max-h-full flex flex-col">
+  <div class="board-frame bg-amber-900 p-[1%] rounded-sm shadow-2xl border-b-4 md:border-b-8 border-amber-950 flex-1 max-w-[min(72vw,42vh)] aspect-[3/4] max-h-full flex flex-col">
 
     <!-- Playing field -->
-    <div class="bg-emerald-900 w-full h-full flex relative border-2 md:border-4 border-amber-950 shadow-inner overflow-hidden">
+    <div class="board-surface bg-emerald-900 w-full h-full flex relative border-2 md:border-4 border-amber-950 shadow-inner overflow-hidden">
 
       <!-- Central Bar (wood) -->
-      <div class="absolute left-1/2 top-[-4px] bottom-[-4px] w-[3%] bg-amber-900 -translate-x-1/2 z-20 shadow-xl border-x border-amber-950">
-        <!--<div class="h-full w-px bg-amber-800 opacity-30"></div>-->
+      <div class="absolute left-1/2 top-[-8px] bottom-[-8px] w-[3%] bg-gradient-to-b from-[#8a6640] to-[#6a4d30] -translate-x-1/2 z-20 shadow-[inset_0_0_0_1px_rgba(245,241,232,0.2),0_6px_12px_rgba(42,47,51,0.25)]">
+        <div class="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-[#f5f1e8]/20"></div>
       </div>
 
       <!-- Left half of the board -->
       <div class="flex-1 flex flex-col justify-between px-[1%] pr-[2.5%]">
         <!-- Top points (13-18) -->
-        <div class="flex h-[45%] gap-[1%]">
+        <div class="flex h-[45%] gap-[1%] -mt-[2px]">
           <% (12..17).each do |idx| %>
             <div class="flex-1 relative flex flex-col items-center cursor-pointer transition-all group"
                  data-game-target="point"
-                 data-action="click->game#selectPoint"
+                 data-action="<%= point_action %>"
                  data-point-index="<%= idx %>">
               <div class="absolute inset-0 <%= idx.even? ? 'bg-amber-200' : 'bg-amber-500' %> opacity-90 group-hover:opacity-150 transition-opacity"
                    style="clip-path: polygon(0 0, 100% 0, 50% 100%);"></div>
@@ -137,11 +199,11 @@
           <% end %>
         </div>
         <!-- Bottom points (7-12) -->
-        <div class="flex h-[45%] gap-[1%]">
+        <div class="flex h-[45%] gap-[1%] -mb-[2px]">
           <% (6..11).to_a.reverse.each do |idx| %>
             <div class="flex-1 relative flex flex-col-reverse items-center cursor-pointer transition-all group"
                  data-game-target="point"
-                 data-action="click->game#selectPoint"
+                 data-action="<%= point_action %>"
                  data-point-index="<%= idx %>">
               <div class="absolute inset-0 <%= idx.even? ? 'bg-amber-200' : 'bg-amber-500' %> opacity-90 group-hover:opacity-150 transition-opacity"
                    style="clip-path: polygon(50% 0, 0 100%, 100% 100%);"></div>
@@ -159,11 +221,11 @@
       <!-- The right half of the board -->
       <div class="flex-1 flex flex-col justify-between px-[1%] pl-[2.5%]">
         <!-- Top points (19-24) -->
-        <div class="flex h-[45%] gap-[1%]">
+        <div class="flex h-[45%] gap-[1%] -mt-[2px]">
           <% (18..23).each do |idx| %>
             <div class="flex-1 relative flex flex-col items-center cursor-pointer transition-all group"
                  data-game-target="point"
-                 data-action="click->game#selectPoint"
+                 data-action="<%= point_action %>"
                  data-point-index="<%= idx %>">
               <div class="absolute inset-0 <%= idx.even? ? 'bg-amber-200' : 'bg-amber-500' %> opacity-90 group-hover:opacity-150 transition-opacity"
                    style="clip-path: polygon(0 0, 100% 0, 50% 100%);"></div>
@@ -177,11 +239,11 @@
           <% end %>
         </div>
         <!-- Bottom points (1-6) -->
-        <div class="flex h-[45%] gap-[1%]">
+        <div class="flex h-[45%] gap-[1%] -mb-[2px]">
           <% (0..5).to_a.reverse.each do |idx| %>
             <div class="flex-1 relative flex flex-col-reverse items-center cursor-pointer transition-all group"
                  data-game-target="point"
-                 data-action="click->game#selectPoint"
+                 data-action="<%= point_action %>"
                  data-point-index="<%= idx %>">
               <div class="absolute inset-0 <%= idx.even? ? 'bg-amber-200' : 'bg-amber-500' %> opacity-90 group-hover:opacity-150 transition-opacity"
                    style="clip-path: polygon(50% 0, 0 100%, 100% 100%);"></div>
@@ -201,52 +263,78 @@
     </div>
   </div>
 
-  <div class="w-[9%] min-w-[32px] max-w-[44px] flex flex-col justify-between py-[1%] shrink-0">
+  <div class="w-[9%] min-w-[32px] max-w-[44px] h-full flex flex-col justify-start py-0 shrink-0 bg-transparent">
     <!-- House of Black Checkers -->
-    <div class="h-[48%] bg-black/10 rounded border-2 border-dashed border-black/20 flex flex-col-reverse items-center p-1 gap-0.5 cursor-pointer <%= black_in_home ? 'ring-2 ring-emerald-500/50 bg-emerald-500/5' : '' %>"
-         data-game-target="point" data-action="click->game#selectPoint" data-point-index="-2">
+    <div class="h-[45.45%] bg-black/10 rounded border-2 border-b-0 border-dashed border-black/20 flex flex-col-reverse items-center p-1 gap-0.5 cursor-pointer <%= black_in_home ? 'ring-2 ring-emerald-500/50 bg-emerald-500/5' : '' %>"
+         data-game-target="point" data-action="<%= point_action %>" data-point-index="-2">
       <% (game.black_borne_off || 0).times do %>
         <div class="w-full h-[5%] bg-slate-800 rounded-sm border border-slate-600 shadow-sm"></div>
       <% end %>
     </div>
 
+    <div class="h-[9.1%] w-full bg-transparent pointer-events-none"></div>
+
     <!-- House of White Checkers -->
-    <div class="h-[48%] bg-white/30 rounded border-2 border-dashed border-white/50 flex flex-col items-center p-1 gap-0.5 cursor-pointer <%= white_in_home ? 'ring-2 ring-emerald-500/50 bg-emerald-500/5' : '' %>"
-         data-game-target="point" data-action="click->game#selectPoint" data-point-index="-1">
+    <div class="h-[45.45%] bg-black/10 rounded border-2 border-t-0 border-dashed border-black/20 flex flex-col items-center p-1 gap-0.5 cursor-pointer <%= white_in_home ? 'ring-2 ring-emerald-500/50 bg-emerald-500/5' : '' %>"
+         data-game-target="point" data-action="<%= point_action %>" data-point-index="-1">
       <% (game.white_borne_off || 0).times do %>
         <div class="w-full h-[5%] bg-white rounded-sm border border-slate-300 shadow-sm"></div>
       <% end %>
     </div>
   </div>
+  </div>
 </div>
   </div>
 
   <!-- Control Panel -->
-  <div class="mt-4 flex items-center gap-4 shrink-0">
-    <div class="flex gap-2 bg-emerald-800 p-2 md:p-3 rounded-lg shadow-inner border border-white/10 hover:cursor-pointer">
+  <div class="mt-4 flex items-center gap-3 md:gap-4 shrink-0 flex-wrap justify-center">
+    <% if replay_mode %>
+      <div class="bg-amber-100/70 text-slate-700 px-4 py-2 rounded-lg border border-amber-300 text-xs md:text-sm font-bold tracking-wide uppercase">
+        Replay mode: step <%= replay_step %> / <%= replay_total %>
+      </div>
+      <%= link_to "Back to live", root_path, class: "bg-emerald-600 text-white px-6 py-2.5 rounded-full font-black text-sm shadow-[0_4px_0_rgb(5,150,105)] hover:bg-emerald-500 transition-all uppercase tracking-widest" %>
+    <% else %>
+    <div class="flex gap-2">
+      <button type="button"
+              data-action="click->game#toggleHints"
+              id="hints-toggle-button"
+              class="nordic-btn-toggle h-10 md:h-11 w-[118px] md:w-[132px] inline-flex items-center justify-center rounded-full font-black text-[10px] md:text-xs uppercase tracking-widest whitespace-nowrap border active:translate-y-0.5 transition-all cursor-pointer">
+        Hints: On
+      </button>
+      <button type="button"
+              data-action="click->game#toggleStats"
+              id="stats-toggle-button"
+              class="nordic-btn-toggle h-10 md:h-11 w-[118px] md:w-[132px] inline-flex items-center justify-center rounded-full font-black text-[10px] md:text-xs uppercase tracking-widest whitespace-nowrap border active:translate-y-0.5 transition-all cursor-pointer">
+        Stats: Off
+      </button>
+    </div>
+
+    <div class="nordic-control-wrap w-[184px] md:w-[238px] h-12 md:h-14 flex items-center justify-center gap-2 px-3 rounded-full hover:cursor-pointer">
       <% if game.available_moves.present? %>
         <% game.available_moves.each do |val| %>
-          <div class="w-8 h-8 md:w-10 md:h-10 bg-white rounded-md flex items-center justify-center text-lg md:text-xl font-bold shadow-lg animate-bounce-short transition-all duration-300 hover:rotate-12 hover:scale-110 hover:-translate-y-1 cursor-pointer">
+          <div class="nordic-die-chip w-6 h-6 md:w-7 md:h-7 rounded-md flex items-center justify-center text-sm md:text-base font-black border animate-bounce-short transition-all duration-300 hover:rotate-12 hover:scale-110 hover:-translate-y-1 cursor-pointer">
             <%= val %>
           </div>
         <% end %>
       <% else %>
-        <span class="text-emerald-400 font-mono text-[10px] uppercase tracking-widest px-2 opacity-70 italic">Waiting</span>
+        <span class="text-amber-200/80 font-mono text-[10px] uppercase tracking-widest px-2 italic">Waiting</span>
       <% end %>
     </div>
 
     <%= button_to roll_dice_game_path(game),
                   method: :post,
                   disabled: game.available_moves.present?,
-                  class: "bg-emerald-600 text-white px-8 md:px-10 py-2.5 md:py-5 rounded-full font-black text-sm md:text-lg shadow-[0_4px_0_rgb(5,150,105)] hover:bg-emerald-500 disabled:bg-slate-400 disabled:shadow-none active:translate-y-1 transition-all uppercase tracking-widest cursor-pointer" do %>
+                  class: "nordic-btn-primary h-11 md:h-12 px-12 md:px-14 rounded-full font-black text-sm md:text-base border disabled:bg-slate-400 disabled:shadow-none active:translate-y-1 transition-all uppercase tracking-widest cursor-pointer" do %>
       Roll the dice 🎲
     <% end %>
 
     <%= button_to undo_move_game_path(game),
                   method: :post,
                   disabled: !game.undo_available?,
-                  class: "bg-amber-600 text-amber-950 px-6 md:px-8 py-2.5 md:py-5 rounded-full font-black text-sm md:text-lg shadow-[0_4px_0_rgb(180,83,9)] hover:bg-amber-500 disabled:bg-slate-400 disabled:text-slate-600 disabled:shadow-none active:translate-y-1 transition-all uppercase tracking-widest cursor-pointer" do %>
+                  class: "nordic-btn-secondary h-11 md:h-12 px-7 md:px-9 rounded-full font-black text-xs md:text-sm border disabled:bg-slate-400 disabled:text-slate-600 disabled:shadow-none active:translate-y-1 transition-all uppercase tracking-widest cursor-pointer" do %>
       Undo move
     <% end %>
+    <% end %>
+  </div>
   </div>
   </div>

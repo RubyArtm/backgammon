@@ -1,7 +1,7 @@
 module Backgammon
   class GameState
     attr_reader :board, :available_moves, :dice_1, :dice_2, :current_turn,
-                :head_used, :white_borne_off, :black_borne_off, :status, :flash_alert, :dice_stats
+                :head_used, :white_borne_off, :black_borne_off, :status, :flash_alert, :dice_stats, :last_used_die
 
     def self.empty_dice_stats
       {
@@ -45,6 +45,7 @@ module Backgammon
       @status = status
       @dice_stats = self.class.normalize_dice_stats(dice_stats)
       @flash_alert = nil
+      @last_used_die = nil
     end
 
     def current_color
@@ -62,6 +63,7 @@ module Backgammon
       @dice_2 = d2
       @available_moves = moves
       @head_used = false
+      @last_used_die = nil
       moves.each { |value| increment_counter!(current_color, "rolled", value) }
       increment_double_counter!(current_color, d1) if d1 == d2
 
@@ -82,6 +84,7 @@ module Backgammon
       @status = 1
       @dice_stats = self.class.empty_dice_stats unless preserve_stats
       @flash_alert = nil
+      @last_used_die = nil
       self
     end
 
@@ -147,6 +150,7 @@ module Backgammon
       @available_moves = moves
       @head_used = true if from == head_index
       increment_counter!(color, "used", used_value)
+      @last_used_die = used_value
 
       if is_bearing_off
         if color == "white"
@@ -206,7 +210,45 @@ module Backgammon
       @status = read_snapshot(snapshot, "status").to_i
       @dice_stats = self.class.normalize_dice_stats(read_snapshot(snapshot, "dice_stats"))
       @flash_alert = nil
+      @last_used_die = nil
       self
+    end
+
+    def legal_destinations_by_from
+      return {} if available_moves.empty?
+      return {} if status == 2
+
+      color = current_color
+      path = Backgammon::Rules.path_for(color)
+      head_index = Backgammon::Rules.head_index_for(color)
+      house_index = color == "white" ? -1 : -2
+      moves = Array(available_moves).uniq
+      map = Hash.new { |h, k| h[k] = [] }
+
+      board.each_index do |from_idx|
+        next unless board.color_at(from_idx) == color && board.count_at(from_idx) > 0
+
+        moves.each do |distance|
+          current_pos = path.index(from_idx)
+          next if current_pos.nil?
+
+          to_idx, is_bearing_off = legal_target_for(
+            from_idx:,
+            distance:,
+            color:,
+            path:,
+            moves:,
+            house_index:
+          )
+          next if to_idx.nil?
+          next unless legal_from_head?(from_idx, head_index)
+          next unless legal_after_prime_check?(from_idx:, to_idx:, color:, is_bearing_off:)
+
+          map[from_idx] << to_idx unless map[from_idx].include?(to_idx)
+        end
+      end
+
+      map.transform_keys(&:to_s).transform_values { |targets| targets.map(&:to_s) }
     end
 
     private
@@ -278,6 +320,37 @@ module Backgammon
 
     def read_snapshot(snapshot, key)
       snapshot[key] || snapshot[key.to_sym]
+    end
+
+    def legal_target_for(from_idx:, distance:, color:, path:, moves:, house_index:)
+      target_pos = path.index(from_idx).to_i + distance
+      if target_pos >= 24
+        return [nil, true] unless Backgammon::Rules.all_checkers_in_home?(board, color)
+        return [nil, true] unless Backgammon::Rules.find_bearing_off_dice_index(board, moves, distance, from_idx, color)
+
+        return [house_index, true]
+      end
+
+      to_idx = path[target_pos]
+      return [nil, false] if board.count_at(to_idx) > 0 && board.color_at(to_idx) != color
+
+      [to_idx, false]
+    end
+
+    def legal_from_head?(from_idx, head_index)
+      return true unless from_idx == head_index
+
+      count_in_head = board.count_at(from_idx)
+      is_double = (dice_1 == dice_2)
+      is_first_turn_exception = is_double && (count_in_head == 14)
+      !head_used || is_first_turn_exception
+    end
+
+    def legal_after_prime_check?(from_idx:, to_idx:, color:, is_bearing_off:)
+      simulated = board.dup
+      simulated.decrement!(from_idx)
+      simulated.increment!(to_idx, color:) unless is_bearing_off
+      !Backgammon::Rules.creates_illegal_prime?(simulated, color)
     end
 
     def apply_blocked_turn_if_needed!

@@ -98,6 +98,16 @@ class Backgammon::GameStateTest < ActiveSupport::TestCase
     assert_equal 1, state.dice_stats.dig("white", "used", "1")
     assert_equal 0, state.dice_stats.dig("white", "used", "2")
     assert_equal 1, state.dice_stats.dig("white", "used", "total")
+    assert_equal 1, state.last_used_die
+  end
+
+  test "legal destinations map is returned for current turn" do
+    state = build_state(available_moves: [1, 2], dice_1: 1, dice_2: 2)
+
+    map = state.legal_destinations_by_from
+
+    assert_equal %w[10 9], map["11"].sort
+    assert_nil map["10"]
   end
 
   test "reset with preserve_stats keeps dice statistics" do

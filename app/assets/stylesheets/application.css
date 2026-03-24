@@ -1,5 +1,109 @@
 @import "tailwindcss";
 
+:root {
+    --nordic-linen: #f5f1e8;
+    --nordic-linen-dark: #e8dfd0;
+    --nordic-walnut: #7a5b3a;
+    --nordic-walnut-deep: #5f452b;
+    --nordic-sage: #4e6b61;
+    --nordic-sage-deep: #365249;
+    --nordic-graphite: #2a2f33;
+    --nordic-brass: #b88a44;
+    --nordic-brass-soft: #d9b06e;
+    --nordic-shadow: 0 10px 28px rgba(42, 47, 51, 0.18);
+}
+
+body.nordic-bg {
+    background:
+            radial-gradient(circle at 12% 10%, rgba(184, 138, 68, 0.16), transparent 36%),
+            radial-gradient(circle at 88% 86%, rgba(78, 107, 97, 0.14), transparent 32%),
+            linear-gradient(165deg, var(--nordic-linen) 0%, var(--nordic-linen-dark) 100%);
+    color: var(--nordic-graphite);
+}
+
+.nordic-shell {
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.06));
+}
+
+.nordic-title {
+    color: var(--nordic-graphite);
+    letter-spacing: 0.08em;
+    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+}
+
+.nordic-title-accent {
+    color: var(--nordic-brass);
+}
+
+.nordic-turn-indicator {
+    background: rgba(255, 255, 255, 0.64);
+    border: 1px solid rgba(122, 91, 58, 0.22);
+    box-shadow: 0 5px 14px rgba(95, 69, 43, 0.12);
+    backdrop-filter: blur(2px);
+}
+
+#stats_panel {
+    border-color: rgba(95, 69, 43, 0.44) !important;
+    background:
+            linear-gradient(180deg, rgba(122, 91, 58, 0.92), rgba(95, 69, 43, 0.94)) !important;
+    box-shadow: var(--nordic-shadow);
+}
+
+#stats_panel [data-stat-section="history"] {
+    border-color: rgba(217, 176, 110, 0.26) !important;
+}
+
+.board-frame {
+    border-color: rgba(95, 69, 43, 0.9) !important;
+    background: linear-gradient(160deg, #8a6640 0%, #6a4d30 100%) !important;
+    box-shadow: var(--nordic-shadow);
+}
+
+.board-surface {
+    border-color: rgba(54, 82, 73, 0.8) !important;
+    background: linear-gradient(180deg, #5c7b70 0%, #3f5e54 100%) !important;
+}
+
+.nordic-control-wrap {
+    background: linear-gradient(180deg, rgba(58, 87, 78, 0.95), rgba(38, 65, 57, 0.98)) !important;
+    border-color: rgba(217, 176, 110, 0.42) !important;
+    box-shadow:
+            inset 0 1px 0 rgba(245, 241, 232, 0.25),
+            0 4px 0 rgba(54, 82, 73, 0.95) !important;
+}
+
+.nordic-die-chip {
+    background: linear-gradient(180deg, #fffdf8 0%, #efe4d1 100%) !important;
+    color: var(--nordic-sage-deep) !important;
+    border-color: rgba(184, 138, 68, 0.5) !important;
+    box-shadow: 0 2px 0 rgba(122, 91, 58, 0.7) !important;
+}
+
+.nordic-btn-toggle {
+    border-color: rgba(217, 176, 110, 0.5) !important;
+    background: linear-gradient(180deg, #f7ecd7 0%, #e8d1ab 100%) !important;
+    color: #5f452b !important;
+    box-shadow: 0 3px 0 rgba(146, 64, 14, 0.75) !important;
+}
+
+.nordic-btn-primary {
+    border-color: rgba(217, 176, 110, 0.55) !important;
+    background: linear-gradient(180deg, #5a8679 0%, #3f665a 100%) !important;
+    color: #f9f4e9 !important;
+    box-shadow:
+            inset 0 1px 0 rgba(217, 176, 110, 0.34),
+            0 5px 0 #294238 !important;
+}
+
+.nordic-btn-secondary {
+    border-color: rgba(217, 176, 110, 0.55) !important;
+    background: linear-gradient(180deg, #d8a45f 0%, #b9782f 100%) !important;
+    color: #4a3218 !important;
+    box-shadow:
+            inset 0 1px 0 rgba(254, 243, 199, 0.44),
+            0 5px 0 #7d4c1d !important;
+}
+
 /* Basic checker style - smooth transitions only for interactivity */
 .checker {
     transition: transform 0.2s ease-out;

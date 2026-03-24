@@ -1,6 +1,52 @@
 class GamesController < ApplicationController
-  before_action :set_game, only: %i[ show roll_dice move undo_move reset ]
-  skip_before_action :verify_authenticity_token, only: [:move]
+  before_action :set_game, only: %i[ show edit update destroy roll_dice move undo_move reset ]
+
+  def index
+    @games = Game.all
+  end
+
+  def show; end
+
+  def new
+    @game = Game.new
+  end
+
+  def edit; end
+
+  def create
+    @game = Game.new(game_params)
+
+    respond_to do |format|
+      if @game.save
+        format.html { redirect_to @game, notice: "Game was successfully created." }
+        format.json { render :show, status: :created, location: @game }
+      else
+        format.html { render :new, status: :unprocessable_entity }
+        format.json { render json: @game.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  def update
+    respond_to do |format|
+      if @game.update(game_params)
+        format.html { redirect_to @game, notice: "Game was successfully updated." }
+        format.json { render :show, status: :ok, location: @game }
+      else
+        format.html { render :edit, status: :unprocessable_entity }
+        format.json { render json: @game.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  def destroy
+    @game.destroy!
+
+    respond_to do |format|
+      format.html { redirect_to games_path, status: :see_other, notice: "Game was successfully destroyed." }
+      format.json { head :no_content }
+    end
+  end
 
   def roll_dice
     @game.clear_undo_history!
@@ -28,6 +74,17 @@ class GamesController < ApplicationController
 
     state.apply_to_record!(@game)
     @game.push_undo_snapshot!(previous_state)
+    @game.append_move_history!(
+      {
+        "from" => from,
+        "to" => to,
+        "color" => previous_state["current_turn"].to_i.zero? ? "white" : "black",
+        "die" => state.last_used_die.to_i,
+        "before" => previous_state,
+        "after" => state.snapshot,
+        "at" => Time.current.iso8601
+      }
+    )
     @game.save!
 
     flash.now[:alert] = state.flash_alert if state.flash_alert.present?
@@ -63,6 +120,7 @@ class GamesController < ApplicationController
 
     state.apply_to_record!(@game)
     @game.clear_undo_history!
+    @game.clear_move_history!
     @game.save!
 
     render_game_update
@@ -79,9 +137,24 @@ class GamesController < ApplicationController
   end
 
   def game_update_streams
+    flash_message = flash[:alert].presence || flash[:notice].presence
+
     [
-      turbo_stream.replace("game_area", partial: "board/game_board", locals: { game: @game }),
-      turbo_stream.replace("flash-message", partial: "board/flash_message")
+      turbo_stream.replace(
+        "game_area",
+        partial: "board/game_board",
+        locals: {
+          game: @game,
+          replay_mode: false,
+          replay_step: @game.move_history_entries.size,
+          replay_total: @game.move_history_entries.size
+        }
+      ),
+      turbo_stream.replace(
+        "flash-message",
+        partial: "board/flash_message",
+        locals: { message: flash_message }
+      )
     ]
   end
 
@@ -95,11 +168,25 @@ class GamesController < ApplicationController
   end
 
   def render_flash_stream(status:)
+    flash_message = flash[:alert].presence || flash[:notice].presence
+
     respond_to do |format|
-      format.turbo_stream { render turbo_stream: turbo_stream.replace("flash-message", partial: "board/flash_message"), status: }
+      format.turbo_stream do
+        render turbo_stream: turbo_stream.replace(
+          "flash-message",
+          partial: "board/flash_message",
+          locals: { message: flash_message }
+        ), status:
+      end
       format.json { render json: { error: flash[:alert].to_s }, status: }
       format.html { redirect_to root_path, alert: flash[:alert].to_s }
-      format.any { render turbo_stream: turbo_stream.replace("flash-message", partial: "board/flash_message"), status: }
+      format.any do
+        render turbo_stream: turbo_stream.replace(
+          "flash-message",
+          partial: "board/flash_message",
+          locals: { message: flash_message }
+        ), status:
+      end
     end
   end
 
@@ -112,5 +199,9 @@ class GamesController < ApplicationController
     Rails.logger.error("[#{tag} 500] #{error.class}: #{error.message}\n#{error.backtrace&.first(30)&.join("\n")}")
     flash.now[:alert] = "Server error. See Rails log."
     render_flash_stream(status: :internal_server_error)
+  end
+
+  def game_params
+    params.fetch(:game, {}).permit(:status, :current_turn, :dice_1, :dice_2, :board_state)
   end
 end

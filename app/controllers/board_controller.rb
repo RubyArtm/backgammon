@@ -1,6 +1,17 @@
 class BoardController < ApplicationController
   def index
     @game = current_game
+    replay_step_param = params[:replay_step]
+
+    if replay_step_param.present?
+      @display_game, @replay_step, @replay_total = @game.replay_view(replay_step_param)
+      @replay_mode = true
+    else
+      @display_game = @game
+      @replay_total = @game.move_history_entries.size
+      @replay_step = @replay_total
+      @replay_mode = false
+    end
   end
 
   private

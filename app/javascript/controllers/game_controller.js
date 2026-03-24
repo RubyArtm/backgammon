@@ -5,30 +5,67 @@ export default class extends Controller {
 
   connect() {
     this.fromPoint = null
+    this.legalMovesMap = {}
+    this.uiStorageKey = "backgammon.ui.preferences.v1"
+    this.uiDefaults = {
+      showHints: true,
+      showStats: false,
+      statSections: {
+        rolled: true,
+        used: true,
+        doubles: true,
+        history: true
+      }
+    }
+    this.uiPreferences = this.loadUiPreferences()
+    this.refreshLegalMovesMap()
+    this.applyUiPreferences()
+    this.installGameAreaObserver()
     this.autoHideFlash()
     setTimeout(() => this.checkWinner(), 200)
     console.log("Backgammon Pro: Connected")
   }
 
+  disconnect() {
+    if (this.gameAreaObserver) this.gameAreaObserver.disconnect()
+  }
+
   // Method of choosing a checker
   selectPoint(event) {
-    const el = event.currentTarget
-    const pointIndex = el.dataset.pointIndex
+    const gameArea = document.getElementById("game_area")
+    if (gameArea?.dataset.replayMode === "true") return
 
-    // Check: Does this item contain checkers? (Look for any div with the checker class.)
-    const hasCheckers = el.querySelector('.checker') !== null
+    this.refreshLegalMovesMap()
+    const el = event.currentTarget
+    const pointIndex = String(el.dataset.pointIndex)
+    const hasCheckers = el.querySelector(".checker:not(.ghost-hint)") !== null
 
     if (this.fromPoint === null) {
-      if (!hasCheckers) return // Ignore clicking on empty space
+      if (!hasCheckers) return
+      if (!this.isSelectableFrom(pointIndex)) return
       this.fromPoint = pointIndex
-      this.highlight(el)
+      this.highlightFromAndTargets()
     } else {
       if (this.fromPoint === pointIndex) {
         this.clearHighlights()
         this.fromPoint = null
         return
       }
-      this.movePiece(this.fromPoint, pointIndex)
+
+      if (this.isSelectableTo(this.fromPoint, pointIndex)) {
+        this.movePiece(this.fromPoint, pointIndex)
+        this.fromPoint = null
+        this.clearHighlights()
+        return
+      }
+
+      if (hasCheckers && this.isSelectableFrom(pointIndex)) {
+        this.fromPoint = pointIndex
+        this.highlightFromAndTargets()
+        return
+      }
+
+      this.showMessage("Illegal move for current dice.")
       this.fromPoint = null
       this.clearHighlights()
     }
@@ -53,6 +90,7 @@ export default class extends Controller {
         const html = await response.text()
         if (window.Turbo) window.Turbo.renderStreamMessage(html)
 
+        this.syncUiAfterDomUpdate()
         requestAnimationFrame(() => {
           this.scheduleFlashAutoHide()
           this.checkWinner()
@@ -135,14 +173,202 @@ export default class extends Controller {
     frame()
   }
 
-  autoHideFlash() {  const flash = document.getElementById("flash-message")
+  autoHideFlash() {
+    const flash = document.getElementById("flash-message")
     if (flash && flash.classList.contains("opacity-100")) {
-      setTimeout(() => {
-        flash.classList.add("scale-0", "opacity-0")
-        flash.classList.remove("scale-100", "opacity-100")
-      }, 3000)
+      this.scheduleFlashAutoHide()
     }
   }
-  highlight(el) { el.classList.add("ring-4", "ring-yellow-400", "z-30") }
-  clearHighlights() { this.pointTargets.forEach(t => t.classList.remove("ring-4", "ring-yellow-400", "z-30")) }
+  refreshLegalMovesMap() {
+    const gameArea = document.getElementById("game_area")
+    const raw = gameArea?.dataset.legalMovesMap
+    if (!raw) {
+      this.legalMovesMap = {}
+      return
+    }
+
+    try {
+      this.legalMovesMap = JSON.parse(raw)
+    } catch (_error) {
+      this.legalMovesMap = {}
+    }
+  }
+
+  isSelectableFrom(pointIndex) {
+    const targets = this.legalMovesMap?.[pointIndex]
+    return Array.isArray(targets) && targets.length > 0
+  }
+
+  isSelectableTo(fromPoint, toPoint) {
+    const targets = this.legalMovesMap?.[String(fromPoint)] || []
+    return targets.includes(String(toPoint))
+  }
+
+  highlightFromAndTargets() {
+    this.clearHighlights()
+    const selected = this.pointTargets.find((target) => target.dataset.pointIndex === String(this.fromPoint))
+    if (selected) selected.classList.add("ring-4", "ring-yellow-400", "z-30")
+
+    if (!this.uiPreferences.showHints) return
+
+    const checkerClasses = this.ghostCheckerClassesForPoint(selected)
+    const targets = this.legalMovesMap?.[String(this.fromPoint)] || []
+    targets.forEach((targetIndex) => {
+      const destination = this.pointTargets.find((target) => target.dataset.pointIndex === String(targetIndex))
+      if (!destination) return
+      this.renderGhostHint(destination, checkerClasses)
+    })
+  }
+
+  clearHighlights() {
+    this.pointTargets.forEach((target) => {
+      target.classList.remove("ring-4", "ring-yellow-400", "z-30")
+      target.querySelectorAll(".ghost-hint").forEach((ghost) => ghost.remove())
+    })
+  }
+
+  ghostCheckerClassesForPoint(point) {
+    if (!point) return "bg-white/45 border-slate-200/65"
+
+    const checker = point.querySelector(".checker:not(.ghost-hint)")
+    if (!checker) return "bg-white/45 border-slate-200/65"
+
+    return checker.classList.contains("bg-slate-800")
+      ? "bg-slate-800/25 border-slate-300/55"
+      : "bg-white/45 border-slate-200/65"
+  }
+
+  renderGhostHint(destination, checkerClasses) {
+    const ghost = document.createElement("div")
+    const stackSize = destination.querySelectorAll(".checker:not(.ghost-hint)").length
+    const hasStack = stackSize > 0
+    const isBottomLane = destination.classList.contains("flex-col-reverse")
+
+    const positionClasses = isBottomLane
+      ? (hasStack ? "bottom-[18%]" : "bottom-[4%]")
+      : (hasStack ? "top-[18%]" : "top-[4%]")
+
+    ghost.className = `ghost-hint checker pointer-events-none absolute left-1/2 -translate-x-1/2 w-[72%] aspect-square rounded-full border shadow-md z-20 ${positionClasses} ${checkerClasses}`
+    destination.appendChild(ghost)
+  }
+
+  toggleHints() {
+    this.uiPreferences.showHints = !this.uiPreferences.showHints
+    this.persistUiPreferences()
+    this.applyUiPreferences()
+    this.highlightFromAndTargets()
+  }
+
+  toggleStats() {
+    this.uiPreferences.showStats = !this.uiPreferences.showStats
+    this.persistUiPreferences()
+    this.applyUiPreferences()
+  }
+
+  toggleStatSection(event) {
+    const section = event.currentTarget.dataset.section
+    if (!section) return
+
+    const current = !!this.uiPreferences.statSections?.[section]
+    this.uiPreferences.statSections[section] = !current
+    this.persistUiPreferences()
+    this.applyUiPreferences()
+  }
+
+  applyUiPreferences() {
+    const gameArea = document.getElementById("game_area")
+    if (gameArea?.dataset.replayMode === "true") return
+
+    const hintsButton = document.getElementById("hints-toggle-button")
+    if (hintsButton) {
+      hintsButton.textContent = `Hints: ${this.uiPreferences.showHints ? "On" : "Off"}`
+      hintsButton.classList.toggle("ring-2", this.uiPreferences.showHints)
+      hintsButton.classList.toggle("ring-emerald-300/70", this.uiPreferences.showHints)
+      hintsButton.classList.toggle("opacity-80", !this.uiPreferences.showHints)
+      hintsButton.classList.toggle("opacity-100", this.uiPreferences.showHints)
+    }
+
+    const statsButton = document.getElementById("stats-toggle-button")
+    const statsPanel = document.getElementById("stats_panel")
+    if (statsButton && statsPanel) {
+      const showStats = !!this.uiPreferences.showStats
+      statsButton.textContent = `Stats: ${showStats ? "On" : "Off"}`
+      statsPanel.classList.toggle("hidden", !showStats)
+      statsButton.classList.toggle("ring-2", showStats)
+      statsButton.classList.toggle("ring-emerald-300/70", showStats)
+      statsButton.classList.toggle("opacity-80", !showStats)
+      statsButton.classList.toggle("opacity-100", showStats)
+    }
+
+    const sectionVisibility = this.uiPreferences.statSections || {}
+    document.querySelectorAll("[data-stat-section]").forEach((element) => {
+      const section = element.dataset.statSection
+      const visible = sectionVisibility[section] !== false
+      element.classList.toggle("hidden", !visible)
+    })
+
+    document.querySelectorAll(".stat-section-toggle").forEach((button) => {
+      const section = button.dataset.section
+      const visible = sectionVisibility[section] !== false
+      button.classList.toggle("bg-emerald-700/60", visible)
+      button.classList.toggle("border-emerald-300/70", visible)
+      button.classList.toggle("bg-black/20", !visible)
+      button.classList.toggle("border-white/20", !visible)
+    })
+  }
+
+  loadUiPreferences() {
+    try {
+      const raw = window.localStorage.getItem(this.uiStorageKey)
+      if (!raw) return JSON.parse(JSON.stringify(this.uiDefaults))
+
+      const parsed = JSON.parse(raw)
+      return {
+        showHints: parsed.showHints !== false,
+        showStats: parsed.showStats === true,
+        statSections: {
+          rolled: parsed?.statSections?.rolled !== false,
+          used: parsed?.statSections?.used !== false,
+          doubles: parsed?.statSections?.doubles !== false,
+          history: parsed?.statSections?.history !== false
+        }
+      }
+    } catch (_error) {
+      return JSON.parse(JSON.stringify(this.uiDefaults))
+    }
+  }
+
+  persistUiPreferences() {
+    try {
+      window.localStorage.setItem(this.uiStorageKey, JSON.stringify(this.uiPreferences))
+    } catch (_error) {
+      // no-op
+    }
+  }
+
+  syncUiAfterDomUpdate() {
+    this.refreshLegalMovesMap()
+    this.applyUiPreferences()
+    this.clearHighlights()
+    this.fromPoint = null
+    this.autoHideFlash()
+  }
+
+  installGameAreaObserver() {
+    if (this.gameAreaObserver) this.gameAreaObserver.disconnect()
+
+    this.lastGameAreaNode = document.getElementById("game_area")
+    this.gameAreaObserver = new MutationObserver(() => {
+      const current = document.getElementById("game_area")
+      if (!current || current === this.lastGameAreaNode) return
+
+      this.lastGameAreaNode = current
+      this.syncUiAfterDomUpdate()
+      requestAnimationFrame(() => {
+        this.checkWinner()
+      })
+    })
+
+    this.gameAreaObserver.observe(this.element, { childList: true, subtree: true })
+  }
 }

@@ -12,6 +12,7 @@ class UndoMoveFlowTest < ActionDispatch::IntegrationTest
 
     game.reload
     assert_equal 1, game.undo_stack.size
+    assert_equal 1, game.move_history_entries.size
     assert_equal 1, game.dice_stats.dig("white", "used", "1")
     assert_equal 1, Backgammon::Board.from_json(game.board_state).count_at(10)
 
@@ -20,6 +21,7 @@ class UndoMoveFlowTest < ActionDispatch::IntegrationTest
 
     game.reload
     assert_equal 0, game.undo_stack.size
+    assert_equal 1, game.move_history_entries.size
     assert_equal initial_board, game.board_state
     assert_equal 0, game.dice_stats.dig("white", "used", "1")
     assert_equal 0, game.dice_stats.dig("white", "used", "total")
@@ -37,6 +39,7 @@ class UndoMoveFlowTest < ActionDispatch::IntegrationTest
 
     game.reload
     assert_equal 2, game.undo_stack.size
+    assert_equal 2, game.move_history_entries.size
     assert_equal 1, game.current_turn
     assert_equal 3, game.dice_stats.dig("white", "used", "total")
 
@@ -59,6 +62,7 @@ class UndoMoveFlowTest < ActionDispatch::IntegrationTest
     game.reload
     board = Backgammon::Board.from_json(game.board_state)
     assert_equal 0, game.undo_stack.size
+    assert_equal 2, game.move_history_entries.size
     assert_equal 0, game.current_turn
     assert_equal [1, 2], game.available_moves
     assert_equal 15, board.count_at(11)
@@ -82,5 +86,19 @@ class UndoMoveFlowTest < ActionDispatch::IntegrationTest
 
     post undo_move_game_path(game), headers: { "Accept" => "text/vnd.turbo-stream.html" }
     assert_response :unprocessable_entity
+    assert_match "Undo is available only before opponent rolls the dice.", response.body
+    assert_match "flash-message", response.body
+  end
+
+  test "history replay step renders successfully" do
+    game = Game.create!
+    game.update!(available_moves: [1], dice_1: 1, dice_2: 2, current_turn: 0)
+
+    post move_game_path(game), params: { from_index: 11, to_index: 10 }
+    assert_response :redirect
+
+    get root_path(replay_step: 1)
+    assert_response :success
+    assert_match "Replay mode", response.body
   end
 end

@@ -1,4 +1,23 @@
 class Game < ApplicationRecord
+  ReplayView = Struct.new(
+    :id,
+    :board_state,
+    :available_moves,
+    :dice_1,
+    :dice_2,
+    :current_turn,
+    :head_used,
+    :white_borne_off,
+    :black_borne_off,
+    :status,
+    :dice_stats,
+    :move_history_entries,
+    keyword_init: true
+  ) do
+    def undo_available? = false
+    def legal_moves_map = {}
+  end
+
   before_create :setup_initial_board
 
   def self.initial_dice_stats
@@ -66,6 +85,55 @@ class Game < ApplicationRecord
     self.undo_snapshot = nil
   end
 
+  def move_history_entries
+    return move_history.select { |entry| entry.is_a?(Hash) } if move_history.is_a?(Array)
+    return [move_history] if move_history.is_a?(Hash)
+
+    []
+  end
+
+  def append_move_history!(entry)
+    history = move_history_entries
+    history << entry
+    self.move_history = history
+  end
+
+  def clear_move_history!
+    self.move_history = nil
+  end
+
+  def replay_view(step)
+    history = move_history_entries
+    total = history.size
+    bounded_step = [[step.to_i, 0].max, total].min
+    snapshot = snapshot_for_replay_step(bounded_step, history)
+
+    [
+      ReplayView.new(
+        id: id,
+        board_state: snapshot["board_state"],
+        available_moves: Array(snapshot["available_moves"]).map(&:to_i),
+        dice_1: snapshot["dice_1"].to_i,
+        dice_2: snapshot["dice_2"].to_i,
+        current_turn: snapshot["current_turn"].to_i,
+        head_used: !!snapshot["head_used"],
+        white_borne_off: snapshot["white_borne_off"].to_i,
+        black_borne_off: snapshot["black_borne_off"].to_i,
+        status: snapshot["status"].to_i,
+        dice_stats: snapshot["dice_stats"],
+        move_history_entries: history
+      ),
+      bounded_step,
+      total
+    ]
+  end
+
+  def legal_moves_map
+    domain_state.legal_destinations_by_from
+  rescue StandardError
+    {}
+  end
+
   def self.default_dice_counter
     {
       "1" => 0,
@@ -92,4 +160,16 @@ class Game < ApplicationRecord
   private_class_method :default_dice_counter
   private_class_method :default_double_counter
 
+  private
+
+  def snapshot_for_replay_step(step, history)
+    return current_snapshot if history.empty?
+    return history[step - 1]["after"] if step.positive?
+
+    history.first["before"] || current_snapshot
+  end
+
+  def current_snapshot
+    domain_state.snapshot
+  end
 end
