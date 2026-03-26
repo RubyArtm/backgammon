@@ -68,12 +68,13 @@ class GamesController < ApplicationController
   end
 
   def reset
+    preserve_stats = ActiveModel::Type::Boolean.new.cast(params[:preserve_stats])
     state = @game.domain_state
-    state.reset!(preserve_stats: ActiveModel::Type::Boolean.new.cast(params[:preserve_stats]))
+    state.reset!(preserve_stats:)
 
     state.apply_to_record!(@game)
     @game.clear_undo_history!
-    @game.clear_move_history!
+    @game.clear_move_history! unless preserve_stats
     @game.save!
 
     render_game_update

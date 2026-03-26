@@ -17,7 +17,7 @@
   <div class="mt-4 md:mt-8 opacity-50 hover:opacity-100 transition-opacity shrink-0">
     <%= button_to "Reset match", reset_game_path(@game),
                   method: :post,
-                  onclick: "return confirm('Are you sure you want to start the game again?');",
+                  form: { data: { turbo_confirm: "Are you sure you want to start the game again?" } },
                   class: "text-slate-500 hover:text-red-600 text-[10px] md:text-sm font-medium underline underline-offset-4 decoration-dotted cursor-pointer" %>
   </div>
 </div>

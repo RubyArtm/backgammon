@@ -24,8 +24,9 @@
   <% if game.status == 2 && !replay_mode %>
     <div id="winner-announcement" data-fired="false"
          class="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/80 backdrop-blur-xl animate-fade-in">
+      <div class="winner-show-glow" aria-hidden="true"></div>
 
-      <div class="text-center p-10 bg-white/10 rounded-3xl border border-white/20 shadow-2xl">
+      <div class="relative z-[220] text-center p-10 bg-white/10 rounded-3xl border border-white/20 shadow-2xl">
         <h2 class="text-6xl font-black text-white uppercase italic tracking-tighter">
           The <%= game.white_borne_off == 15 ? 'whites' : 'black' %> won!
         </h2>
@@ -188,8 +189,7 @@
                  data-game-target="point"
                  data-action="<%= point_action %>"
                  data-point-index="<%= idx %>">
-              <div class="absolute inset-0 <%= idx.even? ? 'bg-amber-200' : 'bg-amber-500' %> opacity-90 group-hover:opacity-150 transition-opacity"
-                   style="clip-path: polygon(0 0, 100% 0, 50% 100%);"></div>
+              <div class="point-triangle point-triangle-down absolute inset-0 <%= idx.even? ? 'bg-amber-200' : 'bg-amber-500' %> opacity-90 group-hover:opacity-150 transition-opacity"></div>
               <% if white_in_home %>
                 <span class="absolute -top-4 text-[9px] font-black text-amber-800 opacity-40"><%= idx - 11 %></span>
               <% end %>
@@ -209,8 +209,7 @@
                  data-game-target="point"
                  data-action="<%= point_action %>"
                  data-point-index="<%= idx %>">
-              <div class="absolute inset-0 <%= idx.even? ? 'bg-amber-200' : 'bg-amber-500' %> opacity-90 group-hover:opacity-150 transition-opacity"
-                   style="clip-path: polygon(50% 0, 0 100%, 100% 100%);"></div>
+              <div class="point-triangle point-triangle-up absolute inset-0 <%= idx.even? ? 'bg-amber-200' : 'bg-amber-500' %> opacity-90 group-hover:opacity-150 transition-opacity"></div>
               <%# Removing checkers from the base %>
               <% item = game.board_state[idx] %>
               <% item["count"].to_i.times do |n| %>
@@ -231,8 +230,7 @@
                  data-game-target="point"
                  data-action="<%= point_action %>"
                  data-point-index="<%= idx %>">
-              <div class="absolute inset-0 <%= idx.even? ? 'bg-amber-200' : 'bg-amber-500' %> opacity-90 group-hover:opacity-150 transition-opacity"
-                   style="clip-path: polygon(0 0, 100% 0, 50% 100%);"></div>
+              <div class="point-triangle point-triangle-down absolute inset-0 <%= idx.even? ? 'bg-amber-200' : 'bg-amber-500' %> opacity-90 group-hover:opacity-150 transition-opacity"></div>
               <%# Removing checkers from the base %>
               <% item = game.board_state[idx] %>
               <% item["count"].to_i.times do |n| %>
@@ -249,8 +247,7 @@
                  data-game-target="point"
                  data-action="<%= point_action %>"
                  data-point-index="<%= idx %>">
-              <div class="absolute inset-0 <%= idx.even? ? 'bg-amber-200' : 'bg-amber-500' %> opacity-90 group-hover:opacity-150 transition-opacity"
-                   style="clip-path: polygon(50% 0, 0 100%, 100% 100%);"></div>
+              <div class="point-triangle point-triangle-up absolute inset-0 <%= idx.even? ? 'bg-amber-200' : 'bg-amber-500' %> opacity-90 group-hover:opacity-150 transition-opacity"></div>
               <% if black_in_home %>
                 <span class="absolute -bottom-4 text-[9px] font-black text-amber-800 opacity-40"><%= idx + 1 %></span>
               <% end %>

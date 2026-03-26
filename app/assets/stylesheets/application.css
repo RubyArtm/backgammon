@@ -64,6 +64,21 @@ body.nordic-bg {
     background: linear-gradient(180deg, #5c7b70 0%, #3f5e54 100%) !important;
 }
 
+.point-triangle {
+    width: 100%;
+    height: 100%;
+}
+
+.point-triangle-down {
+    -webkit-clip-path: polygon(0 0, 100% 0, 50% 100%);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.point-triangle-up {
+    -webkit-clip-path: polygon(50% 0, 0 100%, 100% 100%);
+    clip-path: polygon(50% 0, 0 100%, 100% 100%);
+}
+
 .nordic-control-wrap {
     background: linear-gradient(180deg, rgba(58, 87, 78, 0.95), rgba(38, 65, 57, 0.98)) !important;
     border-color: rgba(217, 176, 110, 0.42) !important;
@@ -126,4 +141,43 @@ body.nordic-bg {
 
 .animate-fade-in {
     animation: fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.winner-show-glow {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 210;
+}
+
+.winner-show-glow::before {
+    content: "";
+    position: absolute;
+    inset: -15%;
+    background:
+        radial-gradient(circle at 50% 18%, rgba(255, 250, 210, 0.45), rgba(255, 250, 210, 0) 34%),
+        radial-gradient(circle at 14% 58%, rgba(96, 165, 250, 0.33), rgba(96, 165, 250, 0) 40%),
+        radial-gradient(circle at 86% 58%, rgba(244, 114, 182, 0.29), rgba(244, 114, 182, 0) 42%);
+    animation: winner-show-glow 1.15s ease-in-out infinite;
+}
+
+.winner-fireworks-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 215;
+}
+
+@keyframes winner-show-glow {
+    0%, 100% {
+        opacity: 0.32;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.95;
+        transform: scale(1.1);
+    }
 }

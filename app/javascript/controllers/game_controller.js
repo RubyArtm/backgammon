@@ -28,6 +28,7 @@ export default class extends Controller {
 
   disconnect() {
     if (this.gameAreaObserver) this.gameAreaObserver.disconnect()
+    this.stopWinnerFireworks()
   }
 
   // Method of choosing a checker
@@ -154,37 +155,178 @@ export default class extends Controller {
       flash.classList.remove("scale-100", "opacity-100")
     }, 3000)
   }
-  async checkWinner() {
+  checkWinner() {
     const winnerEl = document.getElementById("winner-announcement")
-    if (winnerEl && winnerEl.getAttribute('data-fired') === "false") {
-      try {
-        // Dynamic library import
-        const module = await import("canvas-confetti")
-        // We maintain the fireworks function
-        const confettiAction = module.default
+    if (!winnerEl || winnerEl.getAttribute("data-fired") !== "false") return
 
-        // We pass this function to the rendering method
-        this.launchSalute(confettiAction)
-        winnerEl.setAttribute('data-fired', 'true')
-      } catch (e) {
-        console.error("Critical fireworks error:", e)
-      }
-    }
+    winnerEl.setAttribute("data-fired", "true")
+    this.startWinnerFireworks()
   }
 
-  launchSalute(c) {
-    const end = Date.now() + (5 * 1000)
+  startWinnerFireworks() {
+    this.stopWinnerFireworks()
 
-    const frame = () => {
-      // We call the passed function 'c'
-      c({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0, y: 0.6 }, zIndex: 300 })
-      c({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1, y: 0.6 }, zIndex: 300 })
+    const winnerEl = document.getElementById("winner-announcement")
+    if (!winnerEl) return
 
-      if (Date.now() < end) {
-        requestAnimationFrame(frame)
+    const canvas = document.createElement("canvas")
+    canvas.className = "winner-fireworks-canvas"
+    winnerEl.appendChild(canvas)
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    this.fireworksCanvas = canvas
+    this.fireworksCtx = ctx
+    this.fireworksRockets = []
+    this.fireworksParticles = []
+    this.fireworksActive = true
+
+    const resize = () => {
+      const ratio = Math.min(window.devicePixelRatio || 1, 2)
+      canvas.width = Math.floor(window.innerWidth * ratio)
+      canvas.height = Math.floor(window.innerHeight * ratio)
+      canvas.style.width = `${window.innerWidth}px`
+      canvas.style.height = `${window.innerHeight}px`
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
+      ctx.globalCompositeOperation = "lighter"
+    }
+
+    this.fireworksResizeHandler = resize
+    window.addEventListener("resize", this.fireworksResizeHandler)
+    resize()
+
+    const spawnRocket = () => {
+      const w = window.innerWidth
+      const h = window.innerHeight
+      const lane = Math.floor(Math.random() * 3)
+
+      let x
+      let y
+      if (lane === 0) {
+        x = w * (0.2 + Math.random() * 0.6)
+        y = -24
+      } else if (lane === 1) {
+        x = -24
+        y = h * (0.3 + Math.random() * 0.5)
+      } else {
+        x = w + 24
+        y = h * (0.3 + Math.random() * 0.5)
+      }
+
+      const tx = w * (0.22 + Math.random() * 0.56)
+      const ty = h * (0.16 + Math.random() * 0.56)
+      const dx = tx - x
+      const dy = ty - y
+      const dist = Math.max(1, Math.hypot(dx, dy))
+      const speed = 8 + Math.random() * 3.5
+
+      this.fireworksRockets.push({
+        x,
+        y,
+        tx,
+        ty,
+        vx: (dx / dist) * speed,
+        vy: (dy / dist) * speed
+      })
+    }
+
+    this.fireworksSpawnInterval = setInterval(spawnRocket, 85)
+    spawnRocket()
+
+    const colors = ["#ffe17a", "#ffffff", "#7dd3fc", "#34d399", "#f9a8d4", "#fb923c"]
+    const burst = (x, y) => {
+      const count = 42 + Math.floor(Math.random() * 48)
+      for (let i = 0; i < count; i += 1) {
+        const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.55
+        const velocity = 2.3 + Math.random() * 6.8
+        this.fireworksParticles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * velocity,
+          vy: Math.sin(angle) * velocity,
+          life: 0.85 + Math.random() * 0.7,
+          age: 0,
+          radius: 1.7 + Math.random() * 3.2,
+          color: colors[Math.floor(Math.random() * colors.length)]
+        })
       }
     }
-    frame()
+
+    const step = () => {
+      if (!this.fireworksActive || !this.fireworksCtx || !this.fireworksCanvas) return
+
+      const localCtx = this.fireworksCtx
+      const w = window.innerWidth
+      const h = window.innerHeight
+
+      localCtx.globalCompositeOperation = "source-over"
+      localCtx.fillStyle = "rgba(0, 0, 0, 0.12)"
+      localCtx.fillRect(0, 0, w, h)
+      localCtx.globalCompositeOperation = "lighter"
+
+      this.fireworksRockets = this.fireworksRockets.filter((r) => {
+        r.x += r.vx
+        r.y += r.vy
+
+        localCtx.beginPath()
+        localCtx.arc(r.x, r.y, 2.8, 0, Math.PI * 2)
+        localCtx.fillStyle = "rgba(255, 245, 200, 0.95)"
+        localCtx.fill()
+
+        localCtx.beginPath()
+        localCtx.moveTo(r.x, r.y)
+        localCtx.lineTo(r.x - r.vx * 2.4, r.y - r.vy * 2.4)
+        localCtx.strokeStyle = "rgba(255, 233, 145, 0.85)"
+        localCtx.lineWidth = 2.1
+        localCtx.stroke()
+
+        const arrived = Math.hypot(r.tx - r.x, r.ty - r.y) < 12
+        if (arrived) burst(r.x, r.y)
+        return !arrived
+      })
+
+      this.fireworksParticles = this.fireworksParticles.filter((p) => {
+        p.age += 0.016
+        p.vx *= 0.986
+        p.vy = p.vy * 0.986 + 0.055
+        p.x += p.vx
+        p.y += p.vy
+
+        const t = Math.max(0, 1 - p.age / p.life)
+        if (t <= 0) return false
+
+        localCtx.beginPath()
+        localCtx.arc(p.x, p.y, p.radius * t + 0.6, 0, Math.PI * 2)
+        localCtx.fillStyle = p.color
+        localCtx.globalAlpha = Math.min(1, t * 1.2)
+        localCtx.fill()
+
+        return p.x > -40 && p.x < w + 40 && p.y < h + 40
+      })
+
+      localCtx.globalAlpha = 1
+      this.fireworksAnimationFrame = requestAnimationFrame(step)
+    }
+
+    this.fireworksAnimationFrame = requestAnimationFrame(step)
+  }
+
+  stopWinnerFireworks() {
+    this.fireworksActive = false
+    if (this.fireworksSpawnInterval) clearInterval(this.fireworksSpawnInterval)
+    if (this.fireworksAnimationFrame) cancelAnimationFrame(this.fireworksAnimationFrame)
+    if (this.fireworksResizeHandler) {
+      window.removeEventListener("resize", this.fireworksResizeHandler)
+    }
+    if (this.fireworksCanvas) this.fireworksCanvas.remove()
+
+    this.fireworksSpawnInterval = null
+    this.fireworksAnimationFrame = null
+    this.fireworksResizeHandler = null
+    this.fireworksCanvas = null
+    this.fireworksCtx = null
+    this.fireworksRockets = []
+    this.fireworksParticles = []
   }
 
   autoHideFlash() {
@@ -398,6 +540,7 @@ export default class extends Controller {
     this.clearHighlights()
     this.fromPoint = null
     this.autoHideFlash()
+    if (!document.getElementById("winner-announcement")) this.stopWinnerFireworks()
   }
 
   installGameAreaObserver() {

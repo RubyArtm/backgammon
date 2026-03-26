@@ -50,4 +50,35 @@ class GamesControllerTest < ActionDispatch::IntegrationTest
     assert_equal [], game.available_moves
     assert_equal 1, game.status
   end
+
+  test "play again with preserve_stats keeps move history until full reset" do
+    get root_path
+    assert_response :success
+    match = response.body.match(%r{/games/(\d+)/roll_dice})
+    game = Game.find(match[1])
+
+    game.append_move_history!(
+      {
+        "from" => 11,
+        "to" => 7,
+        "color" => "white",
+        "die" => 4,
+        "before" => game.domain_state.snapshot,
+        "after" => game.domain_state.snapshot,
+        "at" => Time.current.iso8601
+      }
+    )
+    game.save!
+    assert_equal 1, game.move_history_entries.size
+
+    post reset_game_path(game), params: { preserve_stats: true }
+    assert_response :redirect
+    game.reload
+    assert_equal 1, game.move_history_entries.size
+
+    post reset_game_path(game), params: { preserve_stats: false }
+    assert_response :redirect
+    game.reload
+    assert_empty game.move_history_entries
+  end
 end
