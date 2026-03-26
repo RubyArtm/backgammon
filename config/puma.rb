@@ -35,7 +35,7 @@ port ENV.fetch("PORT", 3000)
 plugin :tmp_restart
 
 # Suppress warning when cluster mode runs with a single worker.
-silence_single_worker_warning true
+silence_single_worker_warning
 
 # Run the Solid Queue supervisor inside of Puma for single-server deployments.
 plugin :solid_queue if ENV["SOLID_QUEUE_IN_PUMA"]
