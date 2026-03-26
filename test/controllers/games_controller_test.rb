@@ -1,48 +1,53 @@
 require "test_helper"
 
 class GamesControllerTest < ActionDispatch::IntegrationTest
-  setup do
-    @game = games(:one)
-  end
-
-  test "should get index" do
-    get games_url
+  test "roll_dice works for the game stored in session" do
+    get root_path
     assert_response :success
+    match = response.body.match(%r{/games/(\d+)/roll_dice})
+    game = Game.find(match[1])
+
+    post roll_dice_game_path(game)
+    assert_response :redirect
+
+    game.reload
+    assert_operator game.dice_1, :>=, 1
+    assert_operator game.dice_1, :<=, 6
+    assert_operator game.dice_2, :>=, 1
+    assert_operator game.dice_2, :<=, 6
+    assert game.available_moves.present?
   end
 
-  test "should get new" do
-    get new_game_url
+  test "move is forbidden when session game_id mismatches params[:id]" do
+    other_game = Game.create!
+    get root_path
     assert_response :success
+    match = response.body.match(%r{/games/(\d+)/roll_dice})
+    Game.find(match[1])
+
+    post move_game_path(other_game),
+         params: { from_index: 11, to_index: 7 },
+         headers: { "Accept" => "text/vnd.turbo-stream.html" }
+
+    assert_response :forbidden
   end
 
-  test "should create game" do
-    assert_difference("Game.count") do
-      post games_url, params: { game: { board_state: @game.board_state, current_turn: @game.current_turn, dice_1: @game.dice_1, dice_2: @game.dice_2, status: @game.status } }
-    end
-
-    assert_redirected_to game_url(Game.last)
-  end
-
-  test "should show game" do
-    get game_url(@game)
+  test "reset works for the game stored in session" do
+    get root_path
     assert_response :success
-  end
+    match = response.body.match(%r{/games/(\d+)/roll_dice})
+    game = Game.find(match[1])
 
-  test "should get edit" do
-    get edit_game_url(@game)
-    assert_response :success
-  end
+    post roll_dice_game_path(game)
+    assert_response :redirect
 
-  test "should update game" do
-    patch game_url(@game), params: { game: { board_state: @game.board_state, current_turn: @game.current_turn, dice_1: @game.dice_1, dice_2: @game.dice_2, status: @game.status } }
-    assert_redirected_to game_url(@game)
-  end
+    post reset_game_path(game), params: { preserve_stats: false }
+    assert_response :redirect
 
-  test "should destroy game" do
-    assert_difference("Game.count", -1) do
-      delete game_url(@game)
-    end
-
-    assert_redirected_to games_url
+    game.reload
+    assert_equal 0, game.dice_1
+    assert_equal 0, game.dice_2
+    assert_equal [], game.available_moves
+    assert_equal 1, game.status
   end
 end

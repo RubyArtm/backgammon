@@ -1,52 +1,5 @@
 class GamesController < ApplicationController
-  before_action :set_game, only: %i[ show edit update destroy roll_dice move undo_move reset ]
-
-  def index
-    @games = Game.all
-  end
-
-  def show; end
-
-  def new
-    @game = Game.new
-  end
-
-  def edit; end
-
-  def create
-    @game = Game.new(game_params)
-
-    respond_to do |format|
-      if @game.save
-        format.html { redirect_to @game, notice: "Game was successfully created." }
-        format.json { render :show, status: :created, location: @game }
-      else
-        format.html { render :new, status: :unprocessable_entity }
-        format.json { render json: @game.errors, status: :unprocessable_entity }
-      end
-    end
-  end
-
-  def update
-    respond_to do |format|
-      if @game.update(game_params)
-        format.html { redirect_to @game, notice: "Game was successfully updated." }
-        format.json { render :show, status: :ok, location: @game }
-      else
-        format.html { render :edit, status: :unprocessable_entity }
-        format.json { render json: @game.errors, status: :unprocessable_entity }
-      end
-    end
-  end
-
-  def destroy
-    @game.destroy!
-
-    respond_to do |format|
-      format.html { redirect_to games_path, status: :see_other, notice: "Game was successfully destroyed." }
-      format.json { head :no_content }
-    end
-  end
+  before_action :set_current_game, only: %i[ roll_dice move undo_move reset ]
 
   def roll_dice
     @game.clear_undo_history!
@@ -132,8 +85,36 @@ class GamesController < ApplicationController
 
   private
 
-  def set_game
-    @game = Game.find(params[:id])
+  def set_current_game
+    session_game_id = session[:game_id]
+    requested_id = params[:id]
+
+    if session_game_id.blank? || requested_id.to_s != session_game_id.to_s
+      return render_access_denied
+    end
+
+    @game = Game.find_by(id: session_game_id)
+    return if @game
+
+    render_not_found
+  end
+
+  def render_access_denied
+    respond_to do |format|
+      format.turbo_stream { head :forbidden }
+      format.json { render json: { error: "Forbidden" }, status: :forbidden }
+      format.html { head :forbidden }
+      format.any { head :forbidden }
+    end
+  end
+
+  def render_not_found
+    respond_to do |format|
+      format.turbo_stream { head :not_found }
+      format.json { render json: { error: "Not found" }, status: :not_found }
+      format.html { head :not_found }
+      format.any { head :not_found }
+    end
   end
 
   def game_update_streams
@@ -199,9 +180,5 @@ class GamesController < ApplicationController
     Rails.logger.error("[#{tag} 500] #{error.class}: #{error.message}\n#{error.backtrace&.first(30)&.join("\n")}")
     flash.now[:alert] = "Server error. See Rails log."
     render_flash_stream(status: :internal_server_error)
-  end
-
-  def game_params
-    params.fetch(:game, {}).permit(:status, :current_turn, :dice_1, :dice_2, :board_state)
   end
 end

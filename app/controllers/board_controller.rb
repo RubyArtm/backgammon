@@ -26,7 +26,7 @@ class BoardController < ApplicationController
   end
 
   def create_new_game
-    game = Game.create
+    game = Game.create!
     session[:game_id] = game.id
     game
   end

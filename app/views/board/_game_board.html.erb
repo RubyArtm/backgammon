@@ -14,6 +14,10 @@
 <div id="game_area"
      data-legal-moves-map="<%= json_escape(legal_moves_map.to_json) %>"
      data-replay-mode="<%= replay_mode %>"
+     data-current-turn="<%= game.current_turn %>"
+     data-head-used="<%= game.head_used %>"
+     data-dice-1="<%= game.dice_1 %>"
+     data-dice-2="<%= game.dice_2 %>"
      class="h-full w-full flex flex-col items-center justify-center">
 
   <%# WINNER SCREEN (appears at status 2) %>

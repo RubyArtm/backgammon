@@ -62,7 +62,7 @@ class Game < ApplicationRecord
     when Array
       undo_snapshot.select { |item| item.is_a?(Hash) }
     when Hash
-      [undo_snapshot]
+      [ undo_snapshot ]
     else
       []
     end
@@ -87,7 +87,7 @@ class Game < ApplicationRecord
 
   def move_history_entries
     return move_history.select { |entry| entry.is_a?(Hash) } if move_history.is_a?(Array)
-    return [move_history] if move_history.is_a?(Hash)
+    return [ move_history ] if move_history.is_a?(Hash)
 
     []
   end
@@ -105,7 +105,7 @@ class Game < ApplicationRecord
   def replay_view(step)
     history = move_history_entries
     total = history.size
-    bounded_step = [[step.to_i, 0].max, total].min
+    bounded_step = [ [ step.to_i, 0 ].max, total ].min
     snapshot = snapshot_for_replay_step(bounded_step, history)
 
     [

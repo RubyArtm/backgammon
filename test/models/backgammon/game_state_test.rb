@@ -20,7 +20,7 @@ class Backgammon::GameStateTest < ActiveSupport::TestCase
 
   test "reset sets initial state" do
     state = build_state(
-      available_moves: [6],
+      available_moves: [ 6 ],
       dice_1: 6,
       dice_2: 6,
       current_turn: 1,
@@ -59,7 +59,7 @@ class Backgammon::GameStateTest < ActiveSupport::TestCase
     blocked_points[9] = { color: "black", count: 7 }
     state = build_state(board: Backgammon::Board.new(blocked_points))
 
-    rand_values = [1, 2]
+    rand_values = [ 1, 2 ]
     state.define_singleton_method(:rand) { |*| rand_values.shift }
     state.roll_dice!
 
@@ -78,11 +78,11 @@ class Backgammon::GameStateTest < ActiveSupport::TestCase
   test "roll_dice increments rolled counter four times for doubles" do
     state = build_state
 
-    rand_values = [4, 4]
+    rand_values = [ 4, 4 ]
     state.define_singleton_method(:rand) { |*| rand_values.shift }
     state.roll_dice!
 
-    assert_equal [4, 4, 4, 4], state.available_moves
+    assert_equal [ 4, 4, 4, 4 ], state.available_moves
     assert_equal 4, state.dice_stats.dig("white", "rolled", "4")
     assert_equal 16, state.dice_stats.dig("white", "rolled", "total")
     assert_equal 1, state.dice_stats.dig("white", "doubles", "4")
@@ -91,7 +91,7 @@ class Backgammon::GameStateTest < ActiveSupport::TestCase
   end
 
   test "apply_move increments used counter only for consumed die value" do
-    state = build_state(available_moves: [1, 2], dice_1: 1, dice_2: 2)
+    state = build_state(available_moves: [ 1, 2 ], dice_1: 1, dice_2: 2)
 
     state.apply_move!(from: 11, to: 10)
 
@@ -102,7 +102,7 @@ class Backgammon::GameStateTest < ActiveSupport::TestCase
   end
 
   test "legal destinations map is returned for current turn" do
-    state = build_state(available_moves: [1, 2], dice_1: 1, dice_2: 2)
+    state = build_state(available_moves: [ 1, 2 ], dice_1: 1, dice_2: 2)
 
     map = state.legal_destinations_by_from
 
@@ -137,7 +137,7 @@ class Backgammon::GameStateTest < ActiveSupport::TestCase
   end
 
   test "restore_from_snapshot reverts board and stats after move" do
-    state = build_state(available_moves: [1], dice_1: 1, dice_2: 2)
+    state = build_state(available_moves: [ 1 ], dice_1: 1, dice_2: 2)
     snapshot = state.snapshot
 
     state.apply_move!(from: 11, to: 10)
@@ -148,7 +148,7 @@ class Backgammon::GameStateTest < ActiveSupport::TestCase
 
     assert_equal 15, state.board.count_at(11)
     assert_equal 0, state.board.count_at(10)
-    assert_equal [1], state.available_moves
+    assert_equal [ 1 ], state.available_moves
     assert_equal 0, state.dice_stats.dig("white", "used", "1")
     assert_equal 0, state.dice_stats.dig("white", "used", "total")
   end

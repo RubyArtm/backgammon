@@ -57,7 +57,7 @@ module Backgammon
 
       d1 = rand(1..6)
       d2 = rand(1..6)
-      moves = (d1 == d2) ? [d1, d1, d1, d1] : [d1, d2]
+      moves = (d1 == d2) ? [ d1, d1, d1, d1 ] : [ d1, d2 ]
 
       @dice_1 = d1
       @dice_2 = d2
@@ -97,7 +97,7 @@ module Backgammon
       distance =
         if is_bearing_off
           unless Backgammon::Rules.all_checkers_in_home?(board, color)
-            raise Backgammon::ForbiddenMove, "Bring all the checkers into the house!"
+            raise Backgammon::Error.new("Bring all the checkers into the house!", http_status: :forbidden)
           end
           color == "white" ? (from - 11) : (from + 1)
         else
@@ -113,11 +113,13 @@ module Backgammon
         end
 
       if move_index.nil?
-        raise Backgammon::InvalidMove, "There is no dice value on #{distance}"
+        raise Backgammon::Error.new("There is no dice value on #{distance}", http_status: :unprocessable_entity)
       end
 
       source_color = board.color_at(from)
-      raise Backgammon::ForbiddenMove, "Wrong move of the opponent's checker!" if source_color != color
+      if source_color != color
+        raise Backgammon::Error.new("Wrong move of the opponent's checker!", http_status: :forbidden)
+      end
 
       # head rule
       if from == head_index
@@ -125,13 +127,13 @@ module Backgammon
         is_double = (dice_1 == dice_2)
         is_first_turn_exception = is_double && (count_in_head == 14)
         if head_used && !is_first_turn_exception
-          raise Backgammon::ForbiddenMove, "You can only take one checker from your head!"
+          raise Backgammon::Error.new("You can only take one checker from your head!", http_status: :forbidden)
         end
       end
 
       unless is_bearing_off
         if board.count_at(to) > 0 && board.color_at(to) != color
-          raise Backgammon::ForbiddenMove, "The point is occupied by an opponent"
+          raise Backgammon::Error.new("The point is occupied by an opponent", http_status: :forbidden)
         end
       end
 
@@ -140,7 +142,10 @@ module Backgammon
       next_board.increment!(to, color:) unless is_bearing_off
 
       if Backgammon::Rules.creates_illegal_prime?(next_board, color)
-        raise Backgammon::ForbiddenMove, "You cannot build a block of 6 checkers if your opponent has not yet passed it!"
+        raise Backgammon::Error.new(
+          "You cannot build a block of 6 checkers if your opponent has not yet passed it!",
+          http_status: :forbidden
+        )
       end
 
       # commit state
@@ -325,16 +330,16 @@ module Backgammon
     def legal_target_for(from_idx:, distance:, color:, path:, moves:, house_index:)
       target_pos = path.index(from_idx).to_i + distance
       if target_pos >= 24
-        return [nil, true] unless Backgammon::Rules.all_checkers_in_home?(board, color)
-        return [nil, true] unless Backgammon::Rules.find_bearing_off_dice_index(board, moves, distance, from_idx, color)
+        return [ nil, true ] unless Backgammon::Rules.all_checkers_in_home?(board, color)
+        return [ nil, true ] unless Backgammon::Rules.find_bearing_off_dice_index(board, moves, distance, from_idx, color)
 
-        return [house_index, true]
+        return [ house_index, true ]
       end
 
       to_idx = path[target_pos]
-      return [nil, false] if board.count_at(to_idx) > 0 && board.color_at(to_idx) != color
+      return [ nil, false ] if board.count_at(to_idx) > 0 && board.color_at(to_idx) != color
 
-      [to_idx, false]
+      [ to_idx, false ]
     end
 
     def legal_from_head?(from_idx, head_index)

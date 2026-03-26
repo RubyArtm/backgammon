@@ -42,7 +42,11 @@ export default class extends Controller {
 
     if (this.fromPoint === null) {
       if (!hasCheckers) return
-      if (!this.isSelectableFrom(pointIndex)) return
+      if (!this.isSelectableFrom(pointIndex)) {
+        const reason = this.invalidFromReason(el, pointIndex)
+        if (reason) this.showMessage(reason)
+        return
+      }
       this.fromPoint = pointIndex
       this.highlightFromAndTargets()
     } else {
@@ -59,13 +63,7 @@ export default class extends Controller {
         return
       }
 
-      if (hasCheckers && this.isSelectableFrom(pointIndex)) {
-        this.fromPoint = pointIndex
-        this.highlightFromAndTargets()
-        return
-      }
-
-      this.showMessage("Illegal move for current dice.")
+      this.movePiece(this.fromPoint, pointIndex)
       this.fromPoint = null
       this.clearHighlights()
     }
@@ -77,7 +75,7 @@ export default class extends Controller {
       const response = await fetch(`/games/${gameId}/move`, {
         method: 'POST',
         headers: {
-          'Accept': 'text/turbo-stream',
+          'Accept': 'text/vnd.turbo-stream.html, text/html, application/json',
           'Content-Type': 'application/json',
           'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
         },
@@ -85,10 +83,10 @@ export default class extends Controller {
       })
 
       const contentType = response.headers.get("Content-Type") || ""
+      const bodyText = await response.text()
 
       if (contentType.includes("text/vnd.turbo-stream.html")) {
-        const html = await response.text()
-        if (window.Turbo) window.Turbo.renderStreamMessage(html)
+        if (window.Turbo) window.Turbo.renderStreamMessage(bodyText)
 
         this.syncUiAfterDomUpdate()
         requestAnimationFrame(() => {
@@ -101,8 +99,24 @@ export default class extends Controller {
       if (response.ok) return
 
       if (contentType.includes("application/json")) {
-        const data = await response.json()
+        let data = {}
+        try { data = JSON.parse(bodyText || "{}") } catch (_error) { data = {} }
         this.showMessage(data.error || "Error")
+        return
+      }
+
+      if (bodyText.includes("<turbo-stream")) {
+        if (window.Turbo) window.Turbo.renderStreamMessage(bodyText)
+        this.syncUiAfterDomUpdate()
+        requestAnimationFrame(() => this.scheduleFlashAutoHide())
+        return
+      }
+
+      const parser = new DOMParser()
+      const doc = parser.parseFromString(bodyText, "text/html")
+      const extracted = (doc.getElementById("flash-text")?.textContent || "").trim()
+      if (extracted.length > 0) {
+        this.showMessage(extracted)
         return
       }
 
@@ -202,6 +216,38 @@ export default class extends Controller {
   isSelectableTo(fromPoint, toPoint) {
     const targets = this.legalMovesMap?.[String(fromPoint)] || []
     return targets.includes(String(toPoint))
+  }
+
+  invalidFromReason(pointElement, pointIndex) {
+    const gameArea = document.getElementById("game_area")
+    if (!gameArea) return null
+
+    const turn = Number(gameArea.dataset.currentTurn || -1)
+    const checker = pointElement.querySelector(".checker:not(.ghost-hint)")
+    if (!checker) return null
+
+    const isWhiteChecker = checker.classList.contains("bg-white")
+    const isBlackChecker = checker.classList.contains("bg-slate-800")
+    const opponentMove =
+      (turn === 0 && isBlackChecker) ||
+      (turn === 1 && isWhiteChecker)
+    if (opponentMove) return "Wrong move of the opponent's checker!"
+
+    const headIndex = turn === 0 ? "11" : "23"
+    if (String(pointIndex) === headIndex) {
+      const headUsed = gameArea.dataset.headUsed === "true"
+      const d1 = Number(gameArea.dataset.dice1 || 0)
+      const d2 = Number(gameArea.dataset.dice2 || 0)
+      const isDouble = d1 > 0 && d1 === d2
+      const countInHead = pointElement.querySelectorAll(".checker:not(.ghost-hint)").length
+      const isFirstTurnException = isDouble && countInHead === 14
+
+      if (headUsed && !isFirstTurnException) {
+        return "You can only take one checker from your head!"
+      }
+    }
+
+    return "This checker has no legal move."
   }
 
   highlightFromAndTargets() {
