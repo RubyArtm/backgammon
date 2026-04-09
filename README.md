@@ -3,7 +3,7 @@
 Интерактивная веб-версия классических длинных нард на Ruby on Rails 8 с современным UI, быстрой реакцией интерфейса через Hotwire и строгой серверной валидацией правил.
 
 [![CI](https://github.com/RubyArtm/backgammon/actions/workflows/ci.yml/badge.svg)](https://github.com/RubyArtm/backgammon/actions/workflows/ci.yml)
-[![Ruby](https://img.shields.io/badge/Ruby-3.2.3-red.svg)](https://www.ruby-lang.org/)
+[![Ruby](https://img.shields.io/badge/Ruby-3.3-red.svg)](https://www.ruby-lang.org/)
 [![Rails](https://img.shields.io/badge/Rails-8.1.1-cc0000.svg)](https://rubyonrails.org/)
 
 ## Ссылки
@@ -47,7 +47,7 @@
 
 ## Стек и архитектура
 
-- Backend: Ruby `3.2.3`, Rails `8.1.1`
+- Backend: Ruby `3.3`, Rails `8.1.1`
 - Frontend: Hotwire (`turbo-rails`, `stimulus-rails`)
 - UI: Tailwind CSS 4 (`tailwindcss-rails`)
 - Asset pipeline: Propshaft + Importmap
@@ -66,7 +66,7 @@
 
 ### Требования
 
-- Ruby `3.2.3`
+- Ruby `3.3`
 - Bundler
 - SQLite3 (для локального запуска)
 
