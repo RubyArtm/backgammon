@@ -1,63 +1,124 @@
-# 🎮 **LIVE DEMO:** [Play Backgammon Long on Render](https://art-backgammon.onrender.com/)
-# 🎲 Backgammon Long
+# Backgammon Long
 
-A modern web implementation of the classic **"Long Backgammon"** board game, built with the cutting-edge **Ruby on Rails 8** stack. This project combines traditional rules with the high interactivity of a modern single-page application.
+Интерактивная веб-версия классических длинных нард на Ruby on Rails 8 с современным UI, быстрой реакцией интерфейса через Hotwire и строгой серверной валидацией правил.
 
-![Game Board Preview](public/icon.png)
-![Game Board Preview](public/victory_screen.png)
+[![CI](https://github.com/RubyArtm/backgammon/actions/workflows/ci.yml/badge.svg)](https://github.com/RubyArtm/backgammon/actions/workflows/ci.yml)
+[![Ruby](https://img.shields.io/badge/Ruby-3.2.3-red.svg)](https://www.ruby-lang.org/)
+[![Rails](https://img.shields.io/badge/Rails-8.1.1-cc0000.svg)](https://rubyonrails.org/)
 
+## Ссылки
 
-## 🚀 Key Features
+- Репозиторий: **https://github.com/RubyArtm/backgammon**
+- Live demo: **https://art-backgammon.onrender.com/**
 
--   **Complete Ruleset**: Implemented full game logic including counter-clockwise movement, the "Head" rule (one checker per turn), "Block" rule (no 6-checker barriers unless the opponent has passed), and bearing off logic.
--   **SPA Experience with Hotwire**: Utilizing **Turbo Streams** and **Stimulus JS** to provide a seamless experience without page reloads. Moves and dice rolls are updated instantly.
--   **Fully Responsive Design**: The game board automatically scales to fit any screen size (Desktop/Tablet/Mobile) while maintaining its aspect ratio, powered by **Tailwind CSS 4**.
--   **Victory Celebration**: Interactive fireworks animation using the `canvas-confetti` library when a player wins.
--   **Server-Side Integrity**: All game logic and move validations are performed on the backend, preventing cheating via browser console manipulation.
+## Скриншоты
 
-## 🛠 Tech Stack
+![Gameplay overview](public/screenshots/gameplay-overview.png)
+*Главный экран матча с доской, индикатором хода, кубиками и управлением.*
 
--   **Backend**: Ruby 3.2+, Rails 8.1.1
--   **Database**: SQLite (storing board state as JSON)
--   **Frontend**: Hotwire (Turbo + Stimulus), Tailwind CSS 4
--   **Asset Pipeline**: Propshaft + Importmaps (Zero-Node.js build)
--   **Animations**: canvas-confetti (ESM)
+![Stats and history](public/screenshots/stats-and-history.png)
+*Открытая боковая панель: статистика бросков и история ходов (replay-ready интерфейс).*
 
-## 📋 Implemented Game Rules
+![Winner screen](public/screenshots/winner-screen.png)
+*Актуальный экран победы с анимированным оверлеем и кнопкой быстрого рестарта.*
 
-1.  **Initial Setup**: Classic Long Backgammon starting positions (15 checkers on the "Head").
-2.  **Dice Logic**: Random generation with support for "Zari" (doubles), granting 4 moves instead of 2.
-3.  **Head Rule**: Restriction on taking more than one checker from the head per turn (except for the very first double of the game).
-4.  **Blocking (Prime)**: Prevention of building a 6-checker barrier if the opponent hasn't passed that section yet.
-5.  **Smart Turn Switching**: Automatic turn transition if a player has no legal moves available.
-6.  **Bearing Off**: Ability to remove checkers from the board only after all 15 checkers have entered the "Home" area.
+## Что умеет приложение
 
-## ⚙️ Installation & Setup
+- Полная игровая логика длинных нард с серверной проверкой каждого хода.
+- Корректная обработка дублей (4 хода вместо 2).
+- Правило головы: одна шашка за ход (с исключением первого подходящего дубля).
+- Проверка блока из 6 подряд и запрет нелегального блока.
+- Снятие шашек только после полного входа в дом.
+- Автопас хода при отсутствии легальных ходов.
+- `Undo` до броска кубиков соперника.
+- История ходов и режим replay (пошаговый просмотр партии).
+- Статистика кубиков по игрокам: выпало/использовано/дубли.
+- Отзывчивый интерфейс и обновления без перезагрузки страницы (Turbo Streams).
 
-To run this project locally:
+## Правила партии в реализации
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/backgammon.git
-   cd backgammon
-   ```
+1. Стартовая расстановка: по 15 шашек на голове у каждого игрока.
+2. Ход белых и черных идет по заранее заданным путям на 24 пункта.
+3. Перемещение возможно только на значения активных кубиков.
+4. Нельзя занимать пункт с шашками соперника.
+5. При дубле игрок получает 4 доступных перемещения.
+6. После исчерпания всех значений кубиков ход автоматически переходит сопернику.
+7. Победа фиксируется при выбросе всех 15 шашек.
 
-2. Install dependencies:
-   ```bash
-   bundle install
-   ```
+## Стек и архитектура
 
-3. Prepare the database:
-   ```bash
-   bin/rails db:prepare
-   ```
+- Backend: Ruby `3.2.3`, Rails `8.1.1`
+- Frontend: Hotwire (`turbo-rails`, `stimulus-rails`)
+- UI: Tailwind CSS 4 (`tailwindcss-rails`)
+- Asset pipeline: Propshaft + Importmap
+- Хранилище состояния партии: JSON-поля в таблице `games`
+- БД (development/test): SQLite
+- БД (production): PostgreSQL (primary/cable/queue/cache)
 
-4. Start the development server (includes Tailwind watcher):
-   ```bash
-   bin/dev
-   ```
+Ключевые компоненты:
 
-5. Open your browser at: `http://localhost:3000`
+- `Game` + `Backgammon::GameState` для состояния и сценариев партии
+- `Backgammon::Rules` для валидации правил и легальности ходов
+- `GamesController` для действий `roll_dice`, `move`, `undo_move`, `reset`
+- `Stimulus game_controller` для клиентского UX, подсветки и управления UI-предпочтениями
 
----
-Built with ❤️ and respect
+## Быстрый старт
+
+### Требования
+
+- Ruby `3.2.3`
+- Bundler
+- SQLite3 (для локального запуска)
+
+### Установка
+
+```bash
+git clone https://github.com/RubyArtm/backgammon.git
+cd backgammon
+bundle install
+bin/rails db:prepare
+```
+
+### Запуск в development
+
+```bash
+bin/dev
+```
+
+После запуска приложение доступно по адресу `http://localhost:3000`.
+
+## Тесты и качество
+
+Запуск тестов:
+
+```bash
+bin/rails test
+```
+
+Полный CI-профиль локально:
+
+```bash
+bin/brakeman --no-pager
+bin/bundler-audit
+bin/importmap audit
+bin/rubocop -f github
+bin/rails db:test:prepare test test:system
+```
+
+## Основные HTTP endpoints
+
+- `GET /` - игровое поле
+- `POST /games/:id/roll_dice` - бросок кубиков
+- `POST /games/:id/move` - ход шашкой
+- `POST /games/:id/undo_move` - откат последнего хода
+- `POST /games/:id/reset` - новая партия (`preserve_stats=true` для сохранения статистики)
+- `GET /up` - Rails health check
+
+## Деплой
+
+В проекте предусмотрены:
+
+- `Dockerfile` для контейнеризации
+- конфигурация Kamal (`config/deploy.yml`)
+
+Для продакшена используются PostgreSQL и Solid Queue/Cache/Cable.
