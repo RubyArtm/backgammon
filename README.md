@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/RubyArtm/backgammon/actions/workflows/ci.yml/badge.svg)](https://github.com/RubyArtm/backgammon/actions/workflows/ci.yml)
 [![Ruby](https://img.shields.io/badge/Ruby-3.3-red.svg)](https://www.ruby-lang.org/)
-[![Rails](https://img.shields.io/badge/Rails-8.1.1-cc0000.svg)](https://rubyonrails.org/)
+[![Rails](https://img.shields.io/badge/Rails-8.1.3-cc0000.svg)](https://rubyonrails.org/)
 
 ## Ссылки
 
@@ -47,7 +47,7 @@
 
 ## Стек и архитектура
 
-- Backend: Ruby `3.3`, Rails `8.1.1`
+- Backend: Ruby `3.3`, Rails `8.1.3`
 - Frontend: Hotwire (`turbo-rails`, `stimulus-rails`)
 - UI: Tailwind CSS 4 (`tailwindcss-rails`)
 - Asset pipeline: Propshaft + Importmap
